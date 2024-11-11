@@ -59,29 +59,32 @@ app.stage.addChild(viewport);
   viewport.addChild(ghostPoint);
   ghostPoint.visible = false; // Start as invisible
 
-viewport.on('pointermove', (event) => {
-  if (isDrawing) return;
-  const position = viewport.toWorld(event.global);
-  
+// Track the currently highlighted line
+let hoveredLine = null;
 
+viewport.on('pointermove', (event) => {
+    if (isDrawing) return;
+
+    const position = viewport.toWorld(event.global);
     // Check if the mouse is over any line
+    let foundHover = false;
     processes.forEach((process) => {
         if (isPointNearLine(position, process.coords)) {
-          if(!hovered) {
-            hovered = highlightLine(process);
-          } else if(hovered.id == process.id) {
-            console.log('hovered', hovered)
-            removeHighlight(process);
-            hovered = null    
+            if (hoveredLine !== process) {
+                if (hoveredLine) removeHighlight(hoveredLine); // Remove highlight from previous line
+                hoveredLine = highlightLine(process); // Highlight the new line
+            }
+            foundHover = true;
         }
-        console.log(hovered)
-      }
-        
     });
+
+    if (!foundHover && hoveredLine) {
+        removeHighlight(hoveredLine); // Remove highlight if no line is hovered
+        hoveredLine = null;
+    }
 
     ghostPoint.visible = false; // Hide ghost point if not drawing
 });
-
 viewport.on('pointerdown', (event) => {
   if (!isDrawing) return;
 
@@ -228,33 +231,29 @@ function isPointNearLine(point, linePoints) {
 }
 
 // Function to highlight a line
-function highlightLine(line) {
-  if(!line) return;
-  console.log('highlight', line)
-  line.line.clear();
-  
-  //line.line.beginFill(0xffffff); // Optional: add a slight white fill to create border effect
+function highlightLine(process) {
+  if (!process.line) return;
+  process.line.clear();
 
-  // Redraw the line with highlight style
-  line.line.moveTo(line.coords[0].x, line.coords[0].y);
-  for (let i = 1; i < line.coords.length; i++) {
-      line.line.lineTo(line.coords[i].x, line.coords[i].y);
-      line.line.stroke({ width: 6, color: 0xffff00 }); // Set line color and width
+  // Draw each segment of the line with a thicker stroke for highlighting
+  process.line.lineStyle(6, 0xffff00); // Yellow highlight
+  process.line.moveTo(process.coords[0].x, process.coords[0].y);
+  for (let i = 1; i < process.coords.length; i++) {
+      process.line.lineTo(process.coords[i].x, process.coords[i].y);
   }
-  return line
+  return process;
 }
 
 // Function to remove highlight from a line
-function removeHighlight(line) {
-  console.log('remove highlight', line)
-  line.line.clear();
-  
+function removeHighlight(process) {
+  if (!process.line) return;
+  process.line.clear();
 
-  // Redraw the line without highlight style
-  line.line.moveTo(line.coords[0].x, line.coords[0].y);
-  for (let i = 1; i < line.coords.length; i++) {
-      line.line.lineTo(line.coords[i].x, line.coords[i].y);
-      line.line.stroke({ width: 4, color: 0xff0000 }); // Set line color and width
+  // Redraw each segment with the default style
+  process.line.lineStyle(4, 0xff0000); // Red default color
+  process.line.moveTo(process.coords[0].x, process.coords[0].y);
+  for (let i = 1; i < process.coords.length; i++) {
+      process.line.lineTo(process.coords[i].x, process.coords[i].y);
   }
 }
 
