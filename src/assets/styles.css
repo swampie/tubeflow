@@ -1,0 +1,60 @@
+/* Basic reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Full viewport height layout */
+html, body {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Top menu styling */
+.top-menu {
+  width: 100%;
+  height: 50px; /* Adjust as needed */
+  background-color: #333;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Main container for palette and canvas */
+.main-container {
+  display: flex;
+  flex-grow: 1;
+  height: calc(100% - 50px); /* Deduct top menu height */
+}
+
+/* Left Palette section */
+.palette {
+  width: 20%;
+  background-color: #f4f4f4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  border-right: 1px solid #ccc;
+}
+
+/* Canvas container for PIXI app */
+.canvas-container {
+  width: 80%;
+  position: relative;
+  background-color: #000; /* Matches PIXI app background */
+}
+
+/* Style the canvas to take full space of the canvas container */
+canvas#tube {
+  width: 100%;
+  height: 100%;
+}
+
+button#line-tool.active {
+  background-color: #333;
+  color: white;
+}

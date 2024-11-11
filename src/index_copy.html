@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>My First Parcel App</title>
+    <link rel="stylesheet" href="assets/styles.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <div id="data">
+      <textarea id="json">
+        {
+          "stations": {
+            "StationA": {
+              "label": "Station A"
+            },
+            "StationB": {
+              "label": "Station B"
+            }
+          },
+          "lines": [
+            {
+              "name": "LineA",
+              "color": "#FF0000",
+              "shiftCoords": [0, 0],
+              "nodes": [
+                {
+                  "coords": [23, -4],
+                  "name": "StationA",
+                  "labelPos": "N"
+                },
+                {
+                  "coords": [30, -4]
+                },
+                {
+                  "coords": [31, -3]
+                },
+                {
+                  "coords": [31, 2],
+                  "name": "StationB",
+                  "labelPos": "E"
+                }
+              ]
+            }
+          ]
+        }
+      </textarea>
+      <button value="generate" onclick="generate(document.getElementById('json'))">Generate</button>
+    </div>
+    <canvas id="tube"></canvas>
+  </body>
+</html>
