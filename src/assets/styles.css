@@ -54,7 +54,7 @@ canvas#tube {
   height: 100%;
 }
 
-button#line-tool.active {
+button.tool.active {
   background-color: #333;
   color: white;
 }

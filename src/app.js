@@ -2,6 +2,7 @@ import * as PIXI from 'pixi.js';
 import { Viewport } from 'pixi-viewport';
 import { isPointNearLine } from './util.js';
 import { Colors } from './common/colors.js';
+import { GlowFilter } from 'pixi-filters';
 
 let activeTool = null; // Tracks the currently active tool ("line" or "select")
 let hoveredLine = null;
@@ -15,6 +16,7 @@ const WORLD_WIDTH = 1000;
 const WORLD_HEIGHT = 1000;
 const GHOST_POINT_RADIUS = 5;
 const GHOST_POINT_COLOR = 0x00ff00;
+const DEFAULT_HIGHLIGHT_OPTIONS = {glow: false}
 let activeColor = null;
 let ghostPoint = null;
 const colors = new Colors();
@@ -44,6 +46,8 @@ initializeApp = async () => {
         setActiveTool("duplicate");
     });
 
+    
+
     // Initialize PIXI Application
     const app = new PIXI.Application();
     await app.init({
@@ -62,6 +66,11 @@ initializeApp = async () => {
         worldWidth: WORLD_WIDTH,
         worldHeight: WORLD_HEIGHT,
         events: app.renderer.events
+    });
+
+    window.addEventListener('resize', () => {
+        app.renderer.resize(window.innerWidth, window.innerHeight);
+        viewport.resize(window.innerWidth, window.innerHeight, WORLD_WIDTH, WORLD_HEIGHT);
     });
 
     viewport.drag().pinch().wheel().decelerate();
@@ -159,14 +168,12 @@ function handleDuplicate(position) {
 
     // Create the duplicated line
     const duplicatedLine = new PIXI.Graphics();
-    
-    duplicatedLine.moveTo(duplicatedCoords[0].x, duplicatedCoords[0].y);
     const color = colors.nextColor()
-    for (let i = 1; i < duplicatedCoords.length; i++) {
-        duplicatedLine.lineTo(duplicatedCoords[i].x, duplicatedCoords[i].y);
-        duplicatedLine.stroke({width:LINE_DEFAULT_WIDTH, color:color,join:"round"}); // Green color for the duplicated line
-    }
+    drawLine(duplicatedLine, duplicatedCoords, {color:color, width: LINE_DEFAULT_WIDTH}, duplicatedCoords.length > 4)
 
+    
+    
+    
     // Add the duplicated line to the viewport and processes
     hoveredLine.line.parent.addChild(duplicatedLine); // Add to the same container
     processes.push({
@@ -243,7 +250,7 @@ function handleDrawing(event, viewport) {
         
         
         linePoints.push(nextPoint);
-        drawLine(activeColor);
+        drawLine(activeLine, linePoints,{color:activeColor, width: LINE_DEFAULT_WIDTH}, linePoints.length > 4);
     }
 }
 
@@ -268,17 +275,34 @@ function finalizeLine() {
 }
 
 // Function to draw the line as points are added
-function drawLine(color) {
-    if (!activeLine) return;
+function drawLine(line,coords, strokeOptions, smooth = false) {
+    if (!line) return;
 
-    activeLine.clear();
-    
-    activeLine.moveTo(linePoints[0].x, linePoints[0].y);
-    
-    for (let i = 1; i < linePoints.length; i++) {
-        activeLine.lineTo(linePoints[i].x, linePoints[i].y);
-        activeLine.stroke({width:LINE_DEFAULT_WIDTH, color:color, join:"round"}); // Set line color and width
-        //drawStation(linePoints[i], linePoints[i - 1], color);
+    line.clear();
+    line.moveTo(coords[0].x, coords[0].y);
+    if(!smooth) {
+        
+        for (let i = 1; i < coords.length; i++) {
+            line.lineTo(coords[i].x, coords[i].y);
+            line.stroke(strokeOptions); // Set line color and width
+            //drawStation(linePoints[i], linePoints[i - 1], color);
+        }
+    } else {
+        var i = 1
+        for (i = 1; i < coords.length - 2; i++) {
+	        var c = (coords[i].x + coords[i + 1].x) / 2;
+	        var d = (coords[i].y + coords[i + 1].y) / 2;
+
+	        line.quadraticCurveTo(coords[i].x, coords[i].y, c, d);    
+        }
+
+        line.quadraticCurveTo(
+	        coords[i].x,
+	        coords[i].y,
+	        coords[i + 1].x,
+	        coords[i + 1].y
+        );
+        line.stroke(strokeOptions); // Set line color and width
     }
 }
 
@@ -300,32 +324,53 @@ function drawStation(startPoint, endPoint, color) {
 }
 
 // Function to highlight a line
-function highlightLine(process) {
-    
+function highlightLine(process,options = DEFAULT_HIGHLIGHT_OPTIONS) {
     if (process.highlighted) return; // Skip if already highlighted
     process.highlighted = true;
+
+    if(options.glow) {
+        if (!process.glowFilter) {
+            process.glowFilter = new GlowFilter({
+                distance: 15, // Glow distance
+                outerStrength: 2, // Outer glow intensity
+                innerStrength: 1, // Inner glow intensity
+                color: 0xffff00, // Glow color (yellow)
+                quality: 0.5, // Rendering quality
+            });
+        }
     
-    process.line.clear();
-    process.line.moveTo(process.coords[0].x, process.coords[0].y);
-    for (let i = 1; i < process.coords.length; i++) {
-        process.line.lineTo(process.coords[i].x, process.coords[i].y);
-        process.line.stroke({width:HIGHLIGHTED_LINE_DEFAULT_WIDTH, color:0xffff00,join:"round"}); // Yellow highlight
+        // Apply the glow filter to the line
+        process.line.filters = [process.glowFilter]; 
+    } else {
+        if (!process.outline) {
+            process.outline = new PIXI.Graphics();
+            process.line.parent.addChildAt(process.outline, process.line.parent.getChildIndex(process.line));
+        }
+    
+        // Draw the outline
+        process.outline.clear();
+        process.outline.moveTo(process.coords[0].x, process.coords[0].y);
+        
+        drawLine(process.outline, process.coords, {color: process.color, width: HIGHLIGHTED_LINE_DEFAULT_WIDTH,alpha: 0.5}, process.coords.length > 4)
+        
     }
-    return process;
+    // Create and apply a glow filter
+    
+    return process
 }
 
-// Function to remove highlight from a line
-function removeHighlight(process) {
+function removeHighlight(process, options = DEFAULT_HIGHLIGHT_OPTIONS) {
     if (!process.highlighted) return; // Skip if not highlighted
     process.highlighted = false;
-    process.line.clear();
-    
-    process.line.moveTo(process.coords[0].x, process.coords[0].y);
-    for (let i = 1; i < process.coords.length; i++) {
-        process.line.lineTo(process.coords[i].x, process.coords[i].y);
-        process.line.stroke({width:LINE_DEFAULT_WIDTH, color:process.color, join:"round"}); // Red default color
+    if(options.glow) {
+        process.line.filters = [];
+    } else {
+        if (process.outline) {
+            process.outline.clear();
+        }
     }
 }
+
 
 // Function to set the active tool
 function setActiveTool(tool) {
