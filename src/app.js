@@ -236,10 +236,11 @@ function highlightLine(process) {
   process.line.clear();
 
   // Draw each segment of the line with a thicker stroke for highlighting
-  process.line.lineStyle(6, 0xffff00); // Yellow highlight
+  
   process.line.moveTo(process.coords[0].x, process.coords[0].y);
   for (let i = 1; i < process.coords.length; i++) {
       process.line.lineTo(process.coords[i].x, process.coords[i].y);
+      process.line.stroke({width:6, color:0xffff00}); // Yellow highlight
   }
   return process;
 }
@@ -250,10 +251,11 @@ function removeHighlight(process) {
   process.line.clear();
 
   // Redraw each segment with the default style
-  process.line.lineStyle(4, 0xff0000); // Red default color
+  
   process.line.moveTo(process.coords[0].x, process.coords[0].y);
   for (let i = 1; i < process.coords.length; i++) {
       process.line.lineTo(process.coords[i].x, process.coords[i].y);
+      process.line.stroke({width:4, color:0xff0000}); // Red default color
   }
 }
 
