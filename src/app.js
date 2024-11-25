@@ -1,6 +1,7 @@
 import * as PIXI from 'pixi.js';
 import { Viewport } from 'pixi-viewport';
 import { isPointNearLine } from './util.js';
+import { Colors } from './common/colors.js';
 
 let activeTool = null; // Tracks the currently active tool ("line" or "select")
 let hoveredLine = null;
@@ -8,13 +9,21 @@ let isDrawing = false;
 let linePoints = [];
 let processes = [];
 let activeLine = null;
+const LINE_DEFAULT_WIDTH = 8
+const HIGHLIGHTED_LINE_DEFAULT_WIDTH = LINE_DEFAULT_WIDTH + 2
+const WORLD_WIDTH = 1000;
+const WORLD_HEIGHT = 1000;
+const GHOST_POINT_RADIUS = 5;
+const GHOST_POINT_COLOR = 0x00ff00;
+let activeColor = null;
 let ghostPoint = null;
-
+const colors = new Colors();
 initializeApp = async () => {
     const canvas = document.getElementById('tube');
     const lineTool = document.getElementById('line-tool');
     const selectTool = document.getElementById('select-tool');
     const duplicateTool = document.getElementById('duplicate-tool');
+    
 
     if (!(canvas instanceof HTMLCanvasElement)) {
         throw new Error("Element with id 'tube' is not a canvas element.");
@@ -42,13 +51,16 @@ initializeApp = async () => {
         width: window.innerWidth,
         height: window.innerHeight,
         backgroundColor: 0x000,
+        antialias: true,
+        resolution: 2,
+        autoDensity: true
     })
 
     const viewport = new Viewport({
         screenWidth: window.innerWidth,
         screenHeight: window.innerHeight,
-        worldWidth: 1000,
-        worldHeight: 1000,
+        worldWidth: WORLD_WIDTH,
+        worldHeight: WORLD_HEIGHT,
         events: app.renderer.events
     });
 
@@ -57,8 +69,8 @@ initializeApp = async () => {
 
     // Initialize ghost point for preview
     ghostPoint = new PIXI.Graphics();
-    ghostPoint.beginFill(0x00ff00, 0.5); // Semi-transparent green
-    ghostPoint.drawCircle(0, 0, 5); // Small circle as ghost point
+    ghostPoint.beginFill(GHOST_POINT_COLOR, 0.5); // Semi-transparent green
+    ghostPoint.drawCircle(0, 0, GHOST_POINT_RADIUS); // Small circle as ghost point
     ghostPoint.endFill();
     viewport.addChild(ghostPoint);
     ghostPoint.visible = false; // Start as invisible
@@ -77,12 +89,16 @@ initializeApp = async () => {
     });
 
     // Handle line drawing on pointer down
+    const toolHandlers = {
+        line: handleDrawing,
+        select: handleHighlighting,
+        duplicate: handleDuplicate,
+    };
+    
     viewport.on('pointerdown', (event) => {
         const position = viewport.toWorld(event.global);
-        if (activeTool === "line") {
-            handleDrawing(event, viewport);
-        } else if (activeTool === "duplicate") {
-            handleDuplicate(position);
+        if (toolHandlers[activeTool]) {
+            toolHandlers[activeTool](position, viewport);
         }
     });
 };
@@ -110,7 +126,7 @@ function handleDuplicate(position) {
     if (!hoveredLine) return;
 
     const originalCoords = hoveredLine.coords;
-    const offset = 4; // Offset distance equal to line thickness
+    const offset = LINE_DEFAULT_WIDTH; // Offset distance equal to line thickness
 
     // Calculate the duplicated line's coordinates
     const duplicatedCoords = originalCoords.map((point, index, array) => {
@@ -145,10 +161,10 @@ function handleDuplicate(position) {
     const duplicatedLine = new PIXI.Graphics();
     
     duplicatedLine.moveTo(duplicatedCoords[0].x, duplicatedCoords[0].y);
-
+    const color = colors.nextColor()
     for (let i = 1; i < duplicatedCoords.length; i++) {
         duplicatedLine.lineTo(duplicatedCoords[i].x, duplicatedCoords[i].y);
-        duplicatedLine.stroke({width:4, color:0x00ff00}); // Green color for the duplicated line
+        duplicatedLine.stroke({width:LINE_DEFAULT_WIDTH, color:color,join:"round"}); // Green color for the duplicated line
     }
 
     // Add the duplicated line to the viewport and processes
@@ -157,6 +173,7 @@ function handleDuplicate(position) {
         id: processes.length + 1,
         coords: duplicatedCoords,
         line: duplicatedLine,
+        color: color
     });
 }
 
@@ -186,8 +203,8 @@ function handleDrawingPreview(position) {
 
 // Function to handle drawing lines when the "Line" tool is active
 function handleDrawing(event, viewport) {
-    const position = viewport.toWorld(event.global);
-    const { x, y } = position;
+    
+    const { x, y } = event;
 
     if (linePoints.length > 1) {
         const lastPoint = linePoints[linePoints.length - 1];
@@ -201,6 +218,7 @@ function handleDrawing(event, viewport) {
     // Start a new line if it's the first point
     if (linePoints.length === 0) {
         activeLine = new PIXI.Graphics();
+        activeColor = colors.nextColor()
         viewport.addChild(activeLine);
         linePoints.push({ x, y });
     } else {
@@ -222,8 +240,10 @@ function handleDrawing(event, viewport) {
             }
         }
 
+        
+        
         linePoints.push(nextPoint);
-        drawLine();
+        drawLine(activeColor);
     }
 }
 
@@ -237,26 +257,28 @@ function finalizeLine() {
     processes.push({
         id: processesCount + 1,
         coords: linePoints,
-        line: activeLine // Store the activeLine (PIXI.Graphics object) here
+        line: activeLine, // Store the activeLine (PIXI.Graphics object) here
+        color: activeColor
     });
     
     linePoints = [];
     activeLine = null;
+    activeColor = null;
     document.getElementById('line-tool').classList.remove('active');
 }
 
 // Function to draw the line as points are added
-function drawLine() {
+function drawLine(color) {
     if (!activeLine) return;
 
     activeLine.clear();
     
     activeLine.moveTo(linePoints[0].x, linePoints[0].y);
-
+    
     for (let i = 1; i < linePoints.length; i++) {
         activeLine.lineTo(linePoints[i].x, linePoints[i].y);
-        activeLine.stroke({width:4, color:0xff0000}); // Set line color and width
-        drawStation(linePoints[i], linePoints[i - 1], 0xff0000);
+        activeLine.stroke({width:LINE_DEFAULT_WIDTH, color:color, join:"round"}); // Set line color and width
+        //drawStation(linePoints[i], linePoints[i - 1], color);
     }
 }
 
@@ -273,30 +295,35 @@ function drawStation(startPoint, endPoint, color) {
 
     station.moveTo(endPoint.x - xOffset, endPoint.y - yOffset);
     station.lineTo(endPoint.x + xOffset, endPoint.y + yOffset);
-    station.stroke({width:3, color:color});
+    station.stroke({width:8, color:color});
     activeLine.addChild(station);
 }
 
 // Function to highlight a line
 function highlightLine(process) {
-    process.line.clear();
     
+    if (process.highlighted) return; // Skip if already highlighted
+    process.highlighted = true;
+    
+    process.line.clear();
     process.line.moveTo(process.coords[0].x, process.coords[0].y);
     for (let i = 1; i < process.coords.length; i++) {
         process.line.lineTo(process.coords[i].x, process.coords[i].y);
-        process.line.stroke({width:6, color:0xffff00}); // Yellow highlight
+        process.line.stroke({width:HIGHLIGHTED_LINE_DEFAULT_WIDTH, color:0xffff00,join:"round"}); // Yellow highlight
     }
     return process;
 }
 
 // Function to remove highlight from a line
 function removeHighlight(process) {
+    if (!process.highlighted) return; // Skip if not highlighted
+    process.highlighted = false;
     process.line.clear();
     
     process.line.moveTo(process.coords[0].x, process.coords[0].y);
     for (let i = 1; i < process.coords.length; i++) {
         process.line.lineTo(process.coords[i].x, process.coords[i].y);
-        process.line.stroke({width:4, color:0xff0000}); // Red default color
+        process.line.stroke({width:LINE_DEFAULT_WIDTH, color:process.color, join:"round"}); // Red default color
     }
 }
 

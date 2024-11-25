@@ -39,7 +39,7 @@ export function distanceToSegment(point, p1, p2) {
  * @param {number} [threshold=20] - Distance threshold to consider the point near the line
  * @returns {boolean} - True if the point is near any segment of the line
  */
-export function isPointNearLine(point, linePoints, threshold = 20) {
+export function isPointNearLine(point, linePoints, threshold = 5) {
     for (let i = 0; i < linePoints.length - 1; i++) {
         const dist = distanceToSegment(point, linePoints[i], linePoints[i + 1]);
         if (dist < threshold) return true; // Threshold for detecting mouse over line
