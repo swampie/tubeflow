@@ -1,5 +1,6 @@
 import * as PIXI from 'pixi.js';
 import {Viewport} from 'pixi-viewport';
+import { isPointNearLine } from './util';
 
 let isDrawing = false;
 let linePoints = [];
@@ -217,18 +218,6 @@ function drawStation(startPoint, endPoint,color) {
   activeLine.addChild(station);
 }
 
-// Check if a point is near a line
-function isPointNearLine(point, linePoints) {
-  for (let i = 0; i < linePoints.length - 1; i++) {
-      const p1 = linePoints[i];
-      const p2 = linePoints[i + 1];
-
-      // Calculate the distance from the point to the line segment
-      const dist = distanceToSegment(point, p1, p2);
-      if (dist < 20) return true; // Threshold for detecting mouse over line
-  }
-  return false;
-}
 
 // Function to highlight a line
 function highlightLine(process) {
@@ -259,31 +248,6 @@ function removeHighlight(process) {
   }
 }
 
-// Calculate the distance from a point to a line segment
-function distanceToSegment(point, p1, p2) {
-  const x = point.x, y = point.y;
-  const x1 = p1.x, y1 = p1.y, x2 = p2.x, y2 = p2.y;
-  const A = x - x1, B = y - y1, C = x2 - x1, D = y2 - y1;
-
-  const dot = A * C + B * D;
-  const lenSq = C * C + D * D;
-  let param = -1;
-  if (lenSq !== 0) param = dot / lenSq;
-
-  let xx, yy;
-  if (param < 0) {
-      xx = x1;
-      yy = y1;
-  } else if (param > 1) {
-      xx = x2;
-      yy = y2;
-  } else {
-      xx = x1 + param * C;
-      yy = y1 + param * D;
-  }
-
-  return Math.hypot(x - xx, y - yy);
-}
 
 // Resets the line drawing when the line tool is deselected
 function resetDrawing() {
