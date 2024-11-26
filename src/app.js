@@ -1,15 +1,26 @@
 import * as PIXI from 'pixi.js';
 import { Viewport } from 'pixi-viewport';
-import { isPointNearLine } from './util.js';
+import { isPointNearLine, normalize } from './util.js';
 import { Colors } from './common/colors.js';
 import { GlowFilter } from 'pixi-filters';
 
+let isDrawing = false;
+// main objects storage
+let processes = [];
+let stations = [];
+
+// temporary artifacts
+let linePoints = [];
+let activeLine = null;
+let activeColor = null;
+let ghostPoint = null;
 let activeTool = null; // Tracks the currently active tool ("line" or "select")
 let hoveredLine = null;
-let isDrawing = false;
-let linePoints = [];
-let processes = [];
-let activeLine = null;
+
+// utils
+const colors = new Colors();
+
+// constants
 const LINE_DEFAULT_WIDTH = 8
 const HIGHLIGHTED_LINE_DEFAULT_WIDTH = LINE_DEFAULT_WIDTH + 2
 const WORLD_WIDTH = 1000;
@@ -17,15 +28,14 @@ const WORLD_HEIGHT = 1000;
 const GHOST_POINT_RADIUS = 5;
 const GHOST_POINT_COLOR = 0x00ff00;
 const DEFAULT_HIGHLIGHT_OPTIONS = {glow: false}
-let activeColor = null;
-let ghostPoint = null;
-const colors = new Colors();
+
 initializeApp = async () => {
     const canvas = document.getElementById('tube');
     const lineTool = document.getElementById('line-tool');
     const selectTool = document.getElementById('select-tool');
     const duplicateTool = document.getElementById('duplicate-tool');
-    
+    const stationTool = document.getElementById('station-tool'); // New Station tool
+
 
     if (!(canvas instanceof HTMLCanvasElement)) {
         throw new Error("Element with id 'tube' is not a canvas element.");
@@ -45,6 +55,11 @@ initializeApp = async () => {
     duplicateTool.addEventListener('click', () => {
         setActiveTool("duplicate");
     });
+
+    stationTool.addEventListener('click', () => {
+        setActiveTool("station");
+    });
+
 
     
 
@@ -89,7 +104,9 @@ initializeApp = async () => {
     viewport.on('pointermove', (event) => {
         const position = viewport.toWorld(event.global);
 
-        // Call the appropriate handler based on the active tool
+        if (activeTool === "station") {
+            handleStationPreview(position);
+        }
         if (activeTool === "select" || activeTool === 'duplicate') {
             handleHighlighting(position);
         } else if (activeTool === "line" && linePoints.length > 0) {
@@ -102,6 +119,7 @@ initializeApp = async () => {
         line: handleDrawing,
         select: handleHighlighting,
         duplicate: handleDuplicate,
+        station: handleStationPlacement
     };
     
     viewport.on('pointerdown', (event) => {
@@ -111,6 +129,132 @@ initializeApp = async () => {
         }
     });
 };
+
+// Handle Station Tool: Ghost Preview
+function handleStationPreview(position) {
+    const closeLines = findClosestLines(position);
+
+    if (closeLines.length > 0) {
+        const closestPoint = getClosestPointOnLines(position, closeLines);
+
+        // Move the ghost point to the closest point
+        ghostPoint.position.set(closestPoint.x, closestPoint.y);
+        ghostPoint.visible = true; // Show the ghost point
+    } else {
+        ghostPoint.visible = false; // Hide if no close lines
+    }
+}
+
+// Handle Station Tool: Place Station
+function handleStationPlacement(position) {
+    const closeLines = findClosestLines(position);
+
+    if (closeLines.length > 0) {
+        const stationCoords = getClosestPointOnLines(position, closeLines);
+
+        // Create station object
+        const stationId = stations.length + 1;
+        const stationName = `station_${stationId}`;
+        const station = {
+            id: stationId,
+            name: stationName,
+            coords: stationCoords,
+            lines: closeLines.map(line => line.id),
+        };
+
+        // Render the station
+        if (closeLines.length === 1) {
+            drawSingleLineStation(closeLines[0], stationCoords);
+        } else {
+            drawMultiLineStation(closeLines, stationCoords);
+        }
+
+        // Add station to the array
+        stations.push(station);
+    }
+}
+
+// Utility: Find Closest Lines
+function findClosestLines(position) {
+    return processes.filter(process => isPointNearLine(position, process.coords));
+}
+
+// Utility: Get Closest Point on Lines
+function getClosestPointOnLines(position, lines) {
+    let closestPoint = null;
+    let minDistance = Infinity;
+
+    lines.forEach(line => {
+        line.coords.forEach((point, index) => {
+            if (index < line.coords.length - 1) {
+                const segmentStart = line.coords[index];
+                const segmentEnd = line.coords[index + 1];
+                const pointOnSegment = getClosestPointOnSegment(position, segmentStart, segmentEnd);
+
+                const distance = Math.hypot(
+                    position.x - pointOnSegment.x,
+                    position.y - pointOnSegment.y
+                );
+
+                if (distance < minDistance) {
+                    closestPoint = pointOnSegment;
+                    minDistance = distance;
+                }
+            }
+        });
+    });
+
+    return closestPoint;
+}
+
+// Utility: Get Closest Point on a Line Segment
+function getClosestPointOnSegment(p, a, b) {
+    const t = Math.max(0, Math.min(1, ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / ((b.x - a.x) ** 2 + (b.y - a.y) ** 2)));
+    return {
+        x: a.x + t * (b.x - a.x),
+        y: a.y + t * (b.y - a.y),
+    };
+}
+
+// Draw Single Line Station
+function drawSingleLineStation(line, coords) {
+    const station = new PIXI.Graphics();
+    const perpendicularLength = 8;
+    const segmentStart = line.coords[0];
+    const segmentEnd = line.coords[1];
+    const angle = Math.atan2(segmentEnd.y - segmentStart.y, segmentEnd.x - segmentStart.x) + Math.PI / 2;
+
+    const offsetX = (perpendicularLength / 2) * Math.cos(angle);
+    const offsetY = (perpendicularLength / 2) * Math.sin(angle);
+
+    
+    station.moveTo(coords.x - offsetX, coords.y - offsetY);
+    station.lineTo(coords.x + offsetX, coords.y + offsetY);
+    station.stroke({width:2, color:line.color})
+    line.line.addChild(station);
+}
+
+// Draw Multi-Line Station
+function drawMultiLineStation(lines, coords) {
+    const station = new PIXI.Graphics();
+    const rectWidth = 12;
+    const rectHeight = 12;
+
+    
+    station.roundRect(
+        coords.x - rectWidth / 2,
+        coords.y - rectHeight / 2,
+        rectWidth,
+        rectHeight,
+        4
+    );
+    station.fill(0x000000); // Black border
+    station.stroke({width:2, color: 0xffffff})
+    
+    lines.forEach(line => {
+        line.line.addChild(station);
+    });
+}
 
 // Function to handle highlighting when the "Select" tool is active
 function handleHighlighting(position) {
@@ -170,9 +314,6 @@ function handleDuplicate(position) {
     const duplicatedLine = new PIXI.Graphics();
     const color = colors.nextColor()
     drawLine(duplicatedLine, duplicatedCoords, {color:color, width: LINE_DEFAULT_WIDTH}, duplicatedCoords.length > 4)
-
-    
-    
     
     // Add the duplicated line to the viewport and processes
     hoveredLine.line.parent.addChild(duplicatedLine); // Add to the same container
@@ -284,26 +425,39 @@ function drawLine(line,coords, strokeOptions, smooth = false) {
         
         for (let i = 1; i < coords.length; i++) {
             line.lineTo(coords[i].x, coords[i].y);
-            line.stroke(strokeOptions); // Set line color and width
+            
             //drawStation(linePoints[i], linePoints[i - 1], color);
         }
     } else {
-        var i = 1
-        for (i = 1; i < coords.length - 2; i++) {
-	        var c = (coords[i].x + coords[i + 1].x) / 2;
-	        var d = (coords[i].y + coords[i + 1].y) / 2;
-
-	        line.quadraticCurveTo(coords[i].x, coords[i].y, c, d);    
-        }
-
-        line.quadraticCurveTo(
-	        coords[i].x,
-	        coords[i].y,
-	        coords[i + 1].x,
-	        coords[i + 1].y
-        );
-        line.stroke(strokeOptions); // Set line color and width
+            for (let i = 1; i < coords.length; i++) {
+                const prevNode = coords[i - 1];
+                const currNode = coords[i];
+                const prevVector = { x: currNode.x - prevNode.x, y: currNode.y - prevNode.y };
+    
+                if (i < coords.length - 1) {
+                    const nextNode = coords[i + 1];
+                    const nextVector = { x: nextNode.x - currNode.x, y: nextNode.y - currNode.y };
+    
+                    // Normalize vectors
+                    const prevVectorNorm = normalize(prevVector);
+                    const nextVectorNorm = normalize(nextVector);
+    
+                    // Calculate control point as the intersection of the two vectors
+                    const controlPoint = {
+                        x: (prevNode.x + currNode.x) / 2,
+                        y: (prevNode.y + currNode.y) / 2,
+                    };
+    
+                    // Draw a quadratic curve to the next point
+                    line.quadraticCurveTo(controlPoint.x, controlPoint.y, currNode.x, currNode.y);
+                } else {
+                    // For the last point, draw a line
+                    line.lineTo(currNode.x, currNode.y);
+                }
+            }
+            
     }
+    line.stroke(strokeOptions); // Set line color and width
 }
 
 // Function to draw a station at each point
@@ -374,11 +528,28 @@ function removeHighlight(process, options = DEFAULT_HIGHLIGHT_OPTIONS) {
 
 // Function to set the active tool
 function setActiveTool(tool) {
+   // Toggle off if the same tool is clicked again
+   if (activeTool === tool) {
+    activeTool = null;
+
+    // Remove active state from all tool buttons
+        document.getElementById('line-tool').classList.remove('active');
+        document.getElementById('select-tool').classList.remove('active');
+        document.getElementById('duplicate-tool').classList.remove('active');
+        document.getElementById('station-tool').classList.remove('active');
+
+        resetDrawing(); // Reset drawing state if applicable
+        return;
+    }
+
+    // Set the new active tool
     activeTool = tool;
 
+    // Update the active state of tool buttons
     document.getElementById('line-tool').classList.toggle('active', tool === "line");
     document.getElementById('select-tool').classList.toggle('active', tool === "select");
     document.getElementById('duplicate-tool').classList.toggle('active', tool === "duplicate");
+    document.getElementById('station-tool').classList.toggle('active', tool === "station");
 
     if (tool !== "line") resetDrawing();
 }
@@ -391,5 +562,7 @@ function resetDrawing() {
         activeLine = null;
     }
 }
+
+
 
 initializeApp().catch(console.error);

@@ -46,3 +46,9 @@ export function isPointNearLine(point, linePoints, threshold = 5) {
     }
     return false;
 }
+
+// Utility to normalize a vector
+export function normalize(vector) {
+    const length = Math.hypot(vector.x, vector.y);
+    return length === 0 ? { x: 0, y: 0 } : { x: vector.x / length, y: vector.y / length };
+}
