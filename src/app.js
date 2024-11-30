@@ -140,6 +140,9 @@ function handleStationPreview(position) {
         // Move the ghost point to the closest point
         ghostPoint.position.set(closestPoint.x, closestPoint.y);
         ghostPoint.visible = true; // Show the ghost point
+
+        // Optionally, you can draw a ghost station symbol here
+        // using a temporary graphics object if desired
     } else {
         ghostPoint.visible = false; // Hide if no close lines
     }
@@ -160,13 +163,14 @@ function handleStationPlacement(position) {
             name: stationName,
             coords: stationCoords,
             lines: closeLines.map(line => line.id),
+            $graphic: null // Will be set after drawing
         };
 
         // Render the station
         if (closeLines.length === 1) {
-            drawSingleLineStation(closeLines[0], stationCoords);
+            station.graphic = drawSingleLineStation(closeLines[0], stationCoords);
         } else {
-            drawMultiLineStation(closeLines, stationCoords);
+            station.graphic = drawMultiLineStation(closeLines, stationCoords);
         }
 
         // Add station to the array
@@ -176,7 +180,16 @@ function handleStationPlacement(position) {
 
 // Utility: Find Closest Lines
 function findClosestLines(position) {
-    return processes.filter(process => isPointNearLine(position, process.coords));
+    const closeProcesses = processes.filter(process => isPointNearLine(position, process.coords));
+
+    // Collect all related lines
+    const relatedLines = new Set();
+    closeProcesses.forEach(process => {
+        const allRelated = getAllRelatedLines(process);
+        allRelated.forEach(line => relatedLines.add(line));
+    });
+
+    return Array.from(relatedLines);
 }
 
 // Utility: Get Closest Point on Lines
@@ -219,27 +232,27 @@ function getClosestPointOnSegment(p, a, b) {
 // Draw Single Line Station
 function drawSingleLineStation(line, coords) {
     const station = new PIXI.Graphics();
-    const perpendicularLength = 8;
-    const segmentStart = line.coords[0];
-    const segmentEnd = line.coords[1];
-    const angle = Math.atan2(segmentEnd.y - segmentStart.y, segmentEnd.x - segmentStart.x) + Math.PI / 2;
-
-    const offsetX = (perpendicularLength / 2) * Math.cos(angle);
-    const offsetY = (perpendicularLength / 2) * Math.sin(angle);
+    const radius = 5; // Adjust as needed
 
     
-    station.moveTo(coords.x - offsetX, coords.y - offsetY);
-    station.lineTo(coords.x + offsetX, coords.y + offsetY);
-    station.stroke({width:2, color:line.color})
+    station.circle(coords.x, coords.y, radius);
+    station.stroke({width:4, color:0x000}); // Line color border
+    station.fill({color:0xffffff}); // White fill
+    // Add station to a dedicated container or directly to the viewport
     line.line.addChild(station);
+
+    return station;
+    
 }
 
 // Draw Multi-Line Station
 function drawMultiLineStation(lines, coords) {
+    const uniqueLines = Array.from(new Set(lines.map(line => line.id))).map(id => processes.find(p => p.id === id));
     const station = new PIXI.Graphics();
-    const rectWidth = 12;
-    const rectHeight = 12;
+    const rectWidth = 5;
+    const rectHeight = 10 * uniqueLines.length;
 
+    console.log("w", rectWidth, "h", rectHeight)
     
     station.roundRect(
         coords.x - rectWidth / 2,
@@ -248,12 +261,13 @@ function drawMultiLineStation(lines, coords) {
         rectHeight,
         4
     );
-    station.fill(0x000000); // Black border
-    station.stroke({width:2, color: 0xffffff})
+    station.fill(0xffffff); // Black border
+    station.stroke({width:2, color: 0x0000})
     
-    lines.forEach(line => {
+    uniqueLines.forEach(line => {
         line.line.addChild(station);
     });
+    return station
 }
 
 // Function to handle highlighting when the "Select" tool is active
@@ -317,12 +331,24 @@ function handleDuplicate(position) {
     
     // Add the duplicated line to the viewport and processes
     hoveredLine.line.parent.addChild(duplicatedLine); // Add to the same container
-    processes.push({
-        id: processes.length + 1,
-        coords: duplicatedCoords,
-        line: duplicatedLine,
-        color: color
-    });
+   // Create the new line object with $parent reference
+   const newLineId = processes.length + 1;
+   const newLine = {
+       id: newLineId,
+       coords: duplicatedCoords,
+       line: duplicatedLine,
+       color: color,
+       $parent: hoveredLine.id, // Reference to the original line
+       $children: []            // Initialize as empty array
+   };
+
+   // Add the new line to processes
+   processes.push(newLine);
+   if (!hoveredLine.$children) {
+    hoveredLine.$children = [];
+}
+hoveredLine.$children.push(newLineId);
+console.log(processes)
 }
 
 
@@ -406,7 +432,10 @@ function finalizeLine() {
         id: processesCount + 1,
         coords: linePoints,
         line: activeLine, // Store the activeLine (PIXI.Graphics object) here
-        color: activeColor
+        color: activeColor,
+        $children: [],
+        parent: null
+
     });
     
     linePoints = [];
@@ -523,6 +552,37 @@ function removeHighlight(process, options = DEFAULT_HIGHLIGHT_OPTIONS) {
             process.outline.clear();
         }
     }
+}
+
+function getAllRelatedLines(line) {
+    const relatedLines = new Set();
+    const toProcess = [line];
+
+    while (toProcess.length > 0) {
+        const currentLine = toProcess.pop();
+        if (relatedLines.has(currentLine.id)) continue;
+        relatedLines.add(currentLine.id);
+
+        // Add parent line
+        if (currentLine.$parent !== null) {
+            const parentLine = processes.find(p => p.id === currentLine.$parent);
+            if (parentLine) {
+                toProcess.push(parentLine);
+            }
+        }
+
+        // Add child lines
+        if (currentLine.$children && currentLine.$children.length > 0) {
+            currentLine.$children.forEach(childId => {
+                const childLine = processes.find(p => p.id === childId);
+                if (childLine) {
+                    toProcess.push(childLine);
+                }
+            });
+        }
+    }
+
+    return Array.from(relatedLines).map(id => processes.find(p => p.id === id));
 }
 
 
