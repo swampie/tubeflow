@@ -248,26 +248,69 @@ function drawSingleLineStation(line, coords) {
 // Draw Multi-Line Station
 function drawMultiLineStation(lines, coords) {
     const uniqueLines = Array.from(new Set(lines.map(line => line.id))).map(id => processes.find(p => p.id === id));
+    
+    // Compute the closest point on each line to the given position
+    const closestPoints = uniqueLines.map(line => {
+        return getClosestPointOnLine(coords, line.coords);
+    });
+
+    // Calculate the average position (center point)
+    const center = closestPoints.reduce((acc, point) => {
+        acc.x += point.x;
+        acc.y += point.y;
+        return acc;
+    }, { x: 0, y: 0 });
+
+    center.x /= closestPoints.length;
+    center.y /= closestPoints.length;
+
+    
     const station = new PIXI.Graphics();
-    const rectWidth = 5;
+    const rectWidth = 10;
     const rectHeight = 10 * uniqueLines.length;
 
     console.log("w", rectWidth, "h", rectHeight)
     
     station.roundRect(
-        coords.x - rectWidth / 2,
-        coords.y - rectHeight / 2,
+        center.x - rectWidth / 2,
+        center.y - rectHeight / 2,
         rectWidth,
         rectHeight,
         4
     );
     station.fill(0xffffff); // Black border
-    station.stroke({width:2, color: 0x0000})
+    station.stroke({width:3, color: 0x0000})
     
     uniqueLines.forEach(line => {
         line.line.addChild(station);
     });
     return station
+}
+
+// Utility function to get the closest point on a line to a given position
+function getClosestPointOnLine(position, coords) {
+    let closestPoint = null;
+    let minDistance = Infinity;
+
+    coords.forEach((point, index) => {
+        if (index < coords.length - 1) {
+            const segmentStart = coords[index];
+            const segmentEnd = coords[index + 1];
+            const pointOnSegment = getClosestPointOnSegment(position, segmentStart, segmentEnd);
+
+            const distance = Math.hypot(
+                position.x - pointOnSegment.x,
+                position.y - pointOnSegment.y
+            );
+
+            if (distance < minDistance) {
+                closestPoint = pointOnSegment;
+                minDistance = distance;
+            }
+        }
+    });
+
+    return closestPoint;
 }
 
 // Function to handle highlighting when the "Select" tool is active
