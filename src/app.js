@@ -16,6 +16,10 @@ let activeColor = null;
 let ghostPoint = null;
 let activeTool = null; // Tracks the currently active tool ("line" or "select")
 let hoveredLine = null;
+//containers
+const stationContainer = new PIXI.Container();
+const processContainer = new PIXI.Container();
+
 
 // utils
 const colors = new Colors();
@@ -69,7 +73,7 @@ initializeApp = async () => {
         view: canvas,
         width: window.innerWidth,
         height: window.innerHeight,
-        backgroundColor: 0x000,
+        backgroundColor: 0xffffff,
         antialias: true,
         resolution: 2,
         autoDensity: true
@@ -83,6 +87,8 @@ initializeApp = async () => {
         events: app.renderer.events
     });
 
+    viewport.sortableChildren = true;
+
     window.addEventListener('resize', () => {
         app.renderer.resize(window.innerWidth, window.innerHeight);
         viewport.resize(window.innerWidth, window.innerHeight, WORLD_WIDTH, WORLD_HEIGHT);
@@ -93,9 +99,9 @@ initializeApp = async () => {
 
     // Initialize ghost point for preview
     ghostPoint = new PIXI.Graphics();
-    ghostPoint.beginFill(GHOST_POINT_COLOR, 0.5); // Semi-transparent green
-    ghostPoint.drawCircle(0, 0, GHOST_POINT_RADIUS); // Small circle as ghost point
-    ghostPoint.endFill();
+    ghostPoint.fill({color:GHOST_POINT_COLOR, alpha:0.5}); // Semi-transparent green
+    ghostPoint.circle(0, 0, GHOST_POINT_RADIUS); // Small circle as ghost point
+    
     viewport.addChild(ghostPoint);
     ghostPoint.visible = false; // Start as invisible
   
@@ -128,6 +134,14 @@ initializeApp = async () => {
             toolHandlers[activeTool](position, viewport);
         }
     });
+    processContainer.zIndex = 1; // Lower zIndex for lines
+    viewport.addChild(processContainer);
+
+    stationContainer.zIndex = 2; // Higher zIndex for stations
+    viewport.addChild(stationContainer);
+
+    
+    
 };
 
 // Handle Station Tool: Ghost Preview
@@ -172,7 +186,7 @@ function handleStationPlacement(position) {
         } else {
             station.graphic = drawMultiLineStation(closeLines, stationCoords);
         }
-
+        
         // Add station to the array
         stations.push(station);
     }
@@ -239,7 +253,7 @@ function drawSingleLineStation(line, coords) {
     station.stroke({width:4, color:0x000}); // Line color border
     station.fill({color:0xffffff}); // White fill
     // Add station to a dedicated container or directly to the viewport
-    line.line.addChild(station);
+    stationContainer.addChild(station);
 
     return station;
     
@@ -281,9 +295,7 @@ function drawMultiLineStation(lines, coords) {
     station.fill(0xffffff); // Black border
     station.stroke({width:3, color: 0x0000})
     
-    uniqueLines.forEach(line => {
-        line.line.addChild(station);
-    });
+    stationContainer.addChild(station);
     return station
 }
 
@@ -373,7 +385,7 @@ function handleDuplicate(position) {
     drawLine(duplicatedLine, duplicatedCoords, {color:color, width: LINE_DEFAULT_WIDTH}, duplicatedCoords.length > 4)
     
     // Add the duplicated line to the viewport and processes
-    hoveredLine.line.parent.addChild(duplicatedLine); // Add to the same container
+    processContainer.addChild(duplicatedLine); // Add to the same container
    // Create the new line object with $parent reference
    const newLineId = processes.length + 1;
    const newLine = {
@@ -436,7 +448,7 @@ function handleDrawing(event, viewport) {
     if (linePoints.length === 0) {
         activeLine = new PIXI.Graphics();
         activeColor = colors.nextColor()
-        viewport.addChild(activeLine);
+        processContainer.addChild(activeLine);
         linePoints.push({ x, y });
     } else {
         const lastPoint = linePoints[linePoints.length - 1];
@@ -530,23 +542,6 @@ function drawLine(line,coords, strokeOptions, smooth = false) {
             
     }
     line.stroke(strokeOptions); // Set line color and width
-}
-
-// Function to draw a station at each point
-function drawStation(startPoint, endPoint, color) {
-    const station = new PIXI.Graphics();
-    const stationLength = 8; // Length of the station line in pixels
-
-    const angle = Math.atan2(endPoint.y - startPoint.y, endPoint.x - startPoint.x);
-    const perpendicularAngle = angle + Math.PI / 2;
-
-    const xOffset = stationLength * Math.cos(perpendicularAngle) / 2;
-    const yOffset = stationLength * Math.sin(perpendicularAngle) / 2;
-
-    station.moveTo(endPoint.x - xOffset, endPoint.y - yOffset);
-    station.lineTo(endPoint.x + xOffset, endPoint.y + yOffset);
-    station.stroke({width:8, color:color});
-    activeLine.addChild(station);
 }
 
 // Function to highlight a line
