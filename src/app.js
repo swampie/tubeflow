@@ -16,6 +16,8 @@ let activeColor = null;
 let ghostPoint = null;
 let activeTool = null; // Tracks the currently active tool ("line" or "select")
 let hoveredLine = null;
+let selectedColor = '#FF0000';
+let colorContainer;
 //containers
 const stationContainer = new PIXI.Container();
 const processContainer = new PIXI.Container();
@@ -39,6 +41,8 @@ initializeApp = async () => {
     const selectTool = document.getElementById('select-tool');
     const duplicateTool = document.getElementById('duplicate-tool');
     const stationTool = document.getElementById('station-tool'); // New Station tool
+    const colorPicker = document.getElementById('line-color');
+    colorContainer = document.getElementById('line-color-container');
 
 
     if (!(canvas instanceof HTMLCanvasElement)) {
@@ -64,8 +68,14 @@ initializeApp = async () => {
         setActiveTool("station");
     });
 
-
-    
+    colorPicker.addEventListener('input', (e) => {
+        selectedColor = e.target.value;
+        // If we're currently drawing a line, update its color
+        if (activeLine) {
+            activeColor = parseInt(selectedColor.replace('#', '0x'));
+            drawLine(activeLine, linePoints, {color: activeColor, width: LINE_DEFAULT_WIDTH}, linePoints.length > 4);
+        }
+    });
 
     // Initialize PIXI Application
     const app = new PIXI.Application();
@@ -447,7 +457,7 @@ function handleDrawing(event, viewport) {
     // Start a new line if it's the first point
     if (linePoints.length === 0) {
         activeLine = new PIXI.Graphics();
-        activeColor = colors.nextColor()
+        activeColor = parseInt(selectedColor.replace('#', '0x'));
         processContainer.addChild(activeLine);
         linePoints.push({ x, y });
     } else {
@@ -650,6 +660,9 @@ function setActiveTool(tool) {
     document.getElementById('station-tool').classList.toggle('active', tool === "station");
 
     if (tool !== "line") resetDrawing();
+
+    // Show/hide color picker based on tool selection
+    colorContainer.style.display = tool === 'line' ? 'block' : 'none';
 }
 
 // Resets the line drawing when the line tool is deselected
