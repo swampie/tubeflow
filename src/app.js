@@ -687,8 +687,8 @@ function resetDrawing() {
 
 // GRID FUNCTIONS
 function snapToGrid(x, y, gridSize = GRID_SIZE) {
-    const snappedX = Math.round(x / gridSize) * gridSize;
-    const snappedY = Math.round(y / gridSize) * gridSize;
+    const snappedX = Math.floor((x + gridSize / 2) / gridSize) * gridSize;
+    const snappedY = Math.floor((y + gridSize / 2) / gridSize) * gridSize; 
 
     // Ensure we stay within world bounds
     return {
