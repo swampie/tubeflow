@@ -689,7 +689,12 @@ function resetDrawing() {
 function snapToGrid(x, y, gridSize = GRID_SIZE) {
     const snappedX = Math.round(x / gridSize) * gridSize;
     const snappedY = Math.round(y / gridSize) * gridSize;
-    return { x: snappedX, y: snappedY };
+
+    // Ensure we stay within world bounds
+    return {
+        x: Math.min(Math.max(snappedX, 0), WORLD_WIDTH),
+        y: Math.min(Math.max(snappedY, 0), WORLD_HEIGHT)
+    };
 }
 
 function drawGrid() {
