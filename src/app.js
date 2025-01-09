@@ -19,12 +19,15 @@ let hoveredLine = null;
 //containers
 const stationContainer = new PIXI.Container();
 const processContainer = new PIXI.Container();
+const gridContainer = new PIXI.Container();
+gridContainer.zIndex = 0; // Ensure it’s behind other layers
 
 
 // utils
 const colors = new Colors();
 
 // constants
+const GRID_SIZE = 20;
 const LINE_DEFAULT_WIDTH = 8
 const HIGHLIGHTED_LINE_DEFAULT_WIDTH = LINE_DEFAULT_WIDTH + 2
 const WORLD_WIDTH = 1000;
@@ -96,11 +99,16 @@ initializeApp = async () => {
 
     viewport.drag().pinch().wheel().decelerate();
     app.stage.addChild(viewport);
+    viewport.addChild(gridContainer);
+
 
     // Initialize ghost point for preview
     ghostPoint = new PIXI.Graphics();
-    ghostPoint.fill({color:GHOST_POINT_COLOR, alpha:0.5}); // Semi-transparent green
+    ghostPoint.zIndex = 10000
+    
+    ghostPoint.fill({color:GHOST_POINT_COLOR}); // Semi-transparent green
     ghostPoint.circle(0, 0, GHOST_POINT_RADIUS); // Small circle as ghost point
+    ghostPoint.stroke({width:4, color:0x000}); // Line color border
     
     viewport.addChild(ghostPoint);
     ghostPoint.visible = false; // Start as invisible
@@ -140,6 +148,7 @@ initializeApp = async () => {
     stationContainer.zIndex = 2; // Higher zIndex for stations
     viewport.addChild(stationContainer);
 
+    drawGrid()
     
     
 };
@@ -410,24 +419,39 @@ console.log(processes)
 
 // Function to handle drawing preview (ghost point) when the "Line" tool is active
 function handleDrawingPreview(position) {
+    const snappedPos = snapToGrid(position.x, position.y);
+
+    let { x, y } = snappedPos;
     const lastPoint = linePoints[linePoints.length - 1];
 
     // Calculate the ghost point based on angle constraints
-    let { x, y } = position;
     const angle = Math.atan2(y - lastPoint.y, x - lastPoint.x) * (180 / Math.PI);
 
     if (Math.abs(angle) % 45 !== 0) {
         if (Math.abs(angle) < 22.5 || Math.abs(angle) > 157.5) {
-            y = lastPoint.y;
+            y = lastPoint.y; // horizontal
         } else if (Math.abs(angle) < 67.5) {
-            x = lastPoint.x + (x > lastPoint.x ? 1 : -1) * Math.abs(y - lastPoint.y);
+            // 45° logic
+            const dx = x - lastPoint.x;
+            const dy = y - lastPoint.y;
+            // enforce dx == ±dy
+            // simplest approach: pick sign from dx/dy
+            const dist = Math.abs(dx);
+            if (Math.abs(dy) > Math.abs(dx)) {
+                // enforce equal magnitude
+                y = lastPoint.y + Math.sign(dy) * dist;
+            } else {
+                x = lastPoint.x + Math.sign(dx) * Math.abs(dy);
+            }
         } else {
-            x = lastPoint.x;
+            x = lastPoint.x; // vertical
         }
     }
 
     ghostPoint.position.set(x, y);
+    
     ghostPoint.visible = true; // Show the ghost point
+    console.log("show ghost point", ghostPoint.visible)
 }
 
 // Function to handle drawing lines when the "Line" tool is active
@@ -658,6 +682,48 @@ function resetDrawing() {
     if (activeLine) {
         activeLine.clear();
         activeLine = null;
+    }
+}
+
+// GRID FUNCTIONS
+function snapToGrid(x, y, gridSize = GRID_SIZE) {
+    const snappedX = Math.floor((x + gridSize / 2) / gridSize) * gridSize;
+    const snappedY = Math.floor((y + gridSize / 2) / gridSize) * gridSize; 
+
+    // Ensure we stay within world bounds
+    return {
+        x: Math.min(Math.max(snappedX, 0), WORLD_WIDTH),
+        y: Math.min(Math.max(snappedY, 0), WORLD_HEIGHT)
+    };
+}
+
+function drawGrid() {
+    // Clear any existing grid lines
+    gridContainer.removeChildren();
+
+    // Calculate how many lines we need horizontally and vertically
+    const linesHorizontal = Math.ceil(WORLD_HEIGHT / GRID_SIZE);
+    const linesVertical = Math.ceil(WORLD_WIDTH / GRID_SIZE);
+
+    // Draw horizontal lines
+    for (let i = 0; i <= linesHorizontal; i++) {
+        const y = i * GRID_SIZE;
+        const line = new PIXI.Graphics();
+        
+        line.moveTo(0, y);
+        line.lineTo(WORLD_WIDTH, y);
+        line.stroke({width:1, color:0xaaaaaa,alpha:0.3}); // color, alpha)
+        gridContainer.addChild(line);
+    }
+
+    // Draw vertical lines
+    for (let j = 0; j <= linesVertical; j++) {
+        const x = j * GRID_SIZE;
+        const line = new PIXI.Graphics();
+        line.moveTo(x, 0);
+        line.lineTo(x, WORLD_HEIGHT);
+        line.stroke({width:1, color:0xaaaaaa,alpha:0.3}); // color, alpha)
+        gridContainer.addChild(line);
     }
 }
 
