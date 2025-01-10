@@ -3,6 +3,7 @@ import { Viewport } from 'pixi-viewport';
 import { isPointNearLine, normalize } from './util.js';
 import { Colors } from './common/colors.js';
 import { GlowFilter } from 'pixi-filters';
+import { Coordinates, Process, ToolType } from './types.js';
 
 let isDrawing = false;
 // main objects storage
@@ -10,12 +11,12 @@ let processes = [];
 let stations = [];
 
 // temporary artifacts
-let linePoints = [];
-let activeLine = null;
-let activeColor = null;
-let ghostPoint = null;
-let activeTool = null; // Tracks the currently active tool ("line" or "select")
-let hoveredLine = null;
+let linePoints: Coordinates[] = [];
+let activeLine: PIXI.Graphics | null = null;
+let activeColor: number | null = null;
+let ghostPoint: PIXI.Graphics | null = null;
+let activeTool: ToolType = null;
+let hoveredLine: Process | null = null;
 //containers
 const stationContainer = new PIXI.Container();
 const processContainer = new PIXI.Container();
@@ -36,7 +37,7 @@ const GHOST_POINT_RADIUS = 5;
 const GHOST_POINT_COLOR = 0x00ff00;
 const DEFAULT_HIGHLIGHT_OPTIONS = {glow: false}
 
-initializeApp = async () => {
+const initializeApp = async () => {
     const canvas = document.getElementById('tube');
     const lineTool = document.getElementById('line-tool');
     const selectTool = document.getElementById('select-tool');
@@ -49,21 +50,21 @@ initializeApp = async () => {
     }
 
     // Tool Selection for Line
-    lineTool.addEventListener('click', () => {
+    lineTool?.addEventListener('click', () => {
         setActiveTool("line");
     });
 
     // Tool Selection for Select
-    selectTool.addEventListener('click', () => {
+    selectTool?.addEventListener('click', () => {
         setActiveTool("select");
     });
 
     // Tool Selection for Duplicate
-    duplicateTool.addEventListener('click', () => {
+    duplicateTool?.addEventListener('click', () => {
         setActiveTool("duplicate");
     });
 
-    stationTool.addEventListener('click', () => {
+    stationTool?.addEventListener('click', () => {
         setActiveTool("station");
     });
 
@@ -186,6 +187,7 @@ function handleStationPlacement(position) {
             name: stationName,
             coords: stationCoords,
             lines: closeLines.map(line => line.id),
+            graphic: null,
             $graphic: null // Will be set after drawing
         };
 
@@ -202,7 +204,7 @@ function handleStationPlacement(position) {
 }
 
 // Utility: Find Closest Lines
-function findClosestLines(position) {
+function findClosestLines(position): any[] {
     const closeProcesses = processes.filter(process => isPointNearLine(position, process.coords));
 
     // Collect all related lines
@@ -649,16 +651,16 @@ function getAllRelatedLines(line) {
 
 
 // Function to set the active tool
-function setActiveTool(tool) {
+function setActiveTool(tool: ToolType) {
    // Toggle off if the same tool is clicked again
    if (activeTool === tool) {
     activeTool = null;
 
     // Remove active state from all tool buttons
-        document.getElementById('line-tool').classList.remove('active');
-        document.getElementById('select-tool').classList.remove('active');
-        document.getElementById('duplicate-tool').classList.remove('active');
-        document.getElementById('station-tool').classList.remove('active');
+        document.getElementById('line-tool')!.classList.remove('active');
+        document.getElementById('select-tool')!.classList.remove('active');
+        document.getElementById('duplicate-tool')!.classList.remove('active');
+        document.getElementById('station-tool')!.classList.remove('active');
 
         resetDrawing(); // Reset drawing state if applicable
         return;
@@ -668,10 +670,10 @@ function setActiveTool(tool) {
     activeTool = tool;
 
     // Update the active state of tool buttons
-    document.getElementById('line-tool').classList.toggle('active', tool === "line");
-    document.getElementById('select-tool').classList.toggle('active', tool === "select");
-    document.getElementById('duplicate-tool').classList.toggle('active', tool === "duplicate");
-    document.getElementById('station-tool').classList.toggle('active', tool === "station");
+    document.getElementById('line-tool')!.classList.toggle('active', tool === "line");
+    document.getElementById('select-tool')!.classList.toggle('active', tool === "select");
+    document.getElementById('duplicate-tool')!.classList.toggle('active', tool === "duplicate");
+    document.getElementById('station-tool')!.classList.toggle('active', tool === "station");
 
     if (tool !== "line") resetDrawing();
 }
@@ -686,7 +688,7 @@ function resetDrawing() {
 }
 
 // GRID FUNCTIONS
-function snapToGrid(x, y, gridSize = GRID_SIZE) {
+function snapToGrid(x: number, y: number, gridSize = GRID_SIZE) {
     const snappedX = Math.floor((x + gridSize / 2) / gridSize) * gridSize;
     const snappedY = Math.floor((y + gridSize / 2) / gridSize) * gridSize; 
 
