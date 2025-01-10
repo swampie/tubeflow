@@ -1,6 +1,8 @@
 import * as PIXI from "pixi.js";
-import { GlowFilter } from 'pixi-filters';
+import { GlowFilter } from "pixi-filters";
 
+
+// Domain Types
 export interface Coordinates {
   x: number;
   y: number;
