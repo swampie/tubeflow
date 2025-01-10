@@ -3,6 +3,16 @@ import { Viewport } from 'pixi-viewport';
 import { isPointNearLine, normalize } from './util.js';
 import { Colors } from './common/colors.js';
 import { GlowFilter } from 'pixi-filters';
+import { snapToGrid, drawGrid } from "./common/grid.js";
+import {
+    LINE_DEFAULT_WIDTH,
+    HIGHLIGHTED_LINE_DEFAULT_WIDTH,
+    WORLD_WIDTH,
+    WORLD_HEIGHT,
+    GHOST_POINT_RADIUS,
+    GHOST_POINT_COLOR,
+    DEFAULT_HIGHLIGHT_OPTIONS,
+} from './constants.js';
 
 let isDrawing = false;
 // main objects storage
@@ -25,16 +35,6 @@ gridContainer.zIndex = 0; // Ensure it’s behind other layers
 
 // utils
 const colors = new Colors();
-
-// constants
-const GRID_SIZE = 20;
-const LINE_DEFAULT_WIDTH = 8
-const HIGHLIGHTED_LINE_DEFAULT_WIDTH = LINE_DEFAULT_WIDTH + 2
-const WORLD_WIDTH = 1000;
-const WORLD_HEIGHT = 1000;
-const GHOST_POINT_RADIUS = 5;
-const GHOST_POINT_COLOR = 0x00ff00;
-const DEFAULT_HIGHLIGHT_OPTIONS = {glow: false}
 
 initializeApp = async () => {
     const canvas = document.getElementById('tube');
@@ -148,9 +148,7 @@ initializeApp = async () => {
     stationContainer.zIndex = 2; // Higher zIndex for stations
     viewport.addChild(stationContainer);
 
-    drawGrid()
-    
-    
+    drawGrid(gridContainer);
 };
 
 // Handle Station Tool: Ghost Preview
@@ -682,48 +680,6 @@ function resetDrawing() {
     if (activeLine) {
         activeLine.clear();
         activeLine = null;
-    }
-}
-
-// GRID FUNCTIONS
-function snapToGrid(x, y, gridSize = GRID_SIZE) {
-    const snappedX = Math.floor((x + gridSize / 2) / gridSize) * gridSize;
-    const snappedY = Math.floor((y + gridSize / 2) / gridSize) * gridSize; 
-
-    // Ensure we stay within world bounds
-    return {
-        x: Math.min(Math.max(snappedX, 0), WORLD_WIDTH),
-        y: Math.min(Math.max(snappedY, 0), WORLD_HEIGHT)
-    };
-}
-
-function drawGrid() {
-    // Clear any existing grid lines
-    gridContainer.removeChildren();
-
-    // Calculate how many lines we need horizontally and vertically
-    const linesHorizontal = Math.ceil(WORLD_HEIGHT / GRID_SIZE);
-    const linesVertical = Math.ceil(WORLD_WIDTH / GRID_SIZE);
-
-    // Draw horizontal lines
-    for (let i = 0; i <= linesHorizontal; i++) {
-        const y = i * GRID_SIZE;
-        const line = new PIXI.Graphics();
-        
-        line.moveTo(0, y);
-        line.lineTo(WORLD_WIDTH, y);
-        line.stroke({width:1, color:0xaaaaaa,alpha:0.3}); // color, alpha)
-        gridContainer.addChild(line);
-    }
-
-    // Draw vertical lines
-    for (let j = 0; j <= linesVertical; j++) {
-        const x = j * GRID_SIZE;
-        const line = new PIXI.Graphics();
-        line.moveTo(x, 0);
-        line.lineTo(x, WORLD_HEIGHT);
-        line.stroke({width:1, color:0xaaaaaa,alpha:0.3}); // color, alpha)
-        gridContainer.addChild(line);
     }
 }
 
