@@ -1,4 +1,7 @@
 export class Colors {
+    usageCounter: Map<number, number>;
+    availableColors: number[];
+
     constructor() {
         // Initialize available colors and their usage counters
         this.availableColors = [
@@ -16,7 +19,7 @@ export class Colors {
      * If multiple colors are equally least used, it selects one at random.
      * @returns {number} - A color in hexadecimal format.
      */
-    nextColor() {
+    nextColor(): number {
         // Find the minimum usage count
         const minUsage = Math.min(...this.usageCounter.values());
 
