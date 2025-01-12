@@ -1,4 +1,4 @@
-import { ColorScheme } from "./utils/types";
+import { ColorScheme } from "../utils/types";
 
 export const GRID_SIZE = 20;
 export const LINE_DEFAULT_WIDTH = 8
@@ -10,7 +10,6 @@ export const GHOST_POINT_COLOR = 0x00ff00;
 export const DEFAULT_HIGHLIGHT_OPTIONS = {glow: false}
 
 // Colors
-
 export const DEFAULT_COLOR_SCHEME: ColorScheme = {
   colors: [
       0xB36305, 0xE32017, 0xFFD300, 0x00782A, 0x6950a1,

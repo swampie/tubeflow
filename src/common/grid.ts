@@ -3,7 +3,7 @@ import {
   GRID_SIZE,
   WORLD_WIDTH,
   WORLD_HEIGHT,
-} from '../constants.js'
+} from './constants.js'
 import { GridPosition } from '../utils/types.js';
 
 export function snapToGrid(x: number, y: number, gridSize: number = GRID_SIZE): GridPosition {

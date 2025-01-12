@@ -1,14 +1,7 @@
 import * as PIXI from 'pixi.js';
+
 import { Viewport } from 'pixi-viewport';
 import { drawGrid } from "./common/grid.js";
-import {
-    LINE_DEFAULT_WIDTH,
-    WORLD_WIDTH,
-    WORLD_HEIGHT,
-    GHOST_POINT_RADIUS,
-    GHOST_POINT_COLOR,
-} from './constants.js';
-import { Coordinates, Process, ToolType } from './utils/types.js';
 import { ColorService } from './services/color-service.js';
 import { DrawingService } from './services/drawing-service.js';
 import { DrawingHandler } from './handlers/drawing-handler.js';
@@ -21,6 +14,14 @@ import { SelectHandler } from './handlers/select-handler.js';
 import { DuplicateService } from './services/duplicate-service.js';
 import { DuplicateHandler } from './handlers/duplicate-handler.js';
 
+import {
+    WORLD_WIDTH,
+    WORLD_HEIGHT,
+    GHOST_POINT_RADIUS,
+    GHOST_POINT_COLOR,
+} from './common/constants.js';
+import { Coordinates } from './utils/types.js';
+
 // temporary artifacts
 let ghostPoint: PIXI.Graphics | null = null;
 
@@ -29,8 +30,6 @@ const stationContainer = new PIXI.Container();
 const processContainer = new PIXI.Container();
 const gridContainer = new PIXI.Container();
 gridContainer.zIndex = 0; // Ensure it’s behind other layers
-
-// utils
 
 // Initialize ghost point for preview
 ghostPoint = new PIXI.Graphics();
@@ -61,6 +60,7 @@ const stationHandler = new StationHandler(stationService, ghostPoint, drawingSer
 const toolHandler = new ToolHandler(toolService, drawingService, ghostPoint);
 const duplicateHandler = new DuplicateHandler(duplicateService, selectService);
 
+// bootstrapping the application
 const initializeApp = async () => {
     const canvas = document.getElementById('tube');
 
@@ -117,10 +117,10 @@ const initializeApp = async () => {
 
     // Handle line drawing on pointer down
     const toolHandlers = {
-        line: (position) => drawingHandler.handleDrawing(position),
-        select: (position) => selectHandler.handleHighlighting(position),
-        duplicate: (position) => duplicateHandler.handleDuplicate(position),
-        station: (position) => stationHandler.handleStationPlacement(position)
+        line:      (position: Coordinates) => drawingHandler.handleDrawing(position),
+        select:    (position: Coordinates) => selectHandler.handleHighlighting(position),
+        duplicate: (position: Coordinates) => duplicateHandler.handleDuplicate(position),
+        station:   (position: Coordinates) => stationHandler.handleStationPlacement(position)
     };
     
     viewport.on('pointerdown', (event) => {

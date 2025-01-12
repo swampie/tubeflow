@@ -4,7 +4,7 @@ import { GlowFilter } from "pixi-filters";
 import {
   DEFAULT_HIGHLIGHT_OPTIONS,
   HIGHLIGHTED_LINE_DEFAULT_WIDTH,
-} from "../constants";
+} from "../common/constants";
 import { DrawingService } from "./drawing-service";
 
 export class SelectService {

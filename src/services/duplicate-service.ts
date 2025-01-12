@@ -1,6 +1,6 @@
 import * as PIXI from "pixi.js";
 import { Process, Coordinates } from "../utils/types";
-import { LINE_DEFAULT_WIDTH } from "../constants";
+import { LINE_DEFAULT_WIDTH } from "../common/constants";
 import { DrawingService } from "./drawing-service";
 import { ColorService } from "./color-service";
 

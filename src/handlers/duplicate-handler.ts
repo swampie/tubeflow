@@ -1,3 +1,4 @@
+import { DuplicateService } from "../services/duplicate-service";
 import { SelectService } from "../services/select-service";
 import { Coordinates } from "../utils/types";
 

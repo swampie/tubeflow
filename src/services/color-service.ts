@@ -1,4 +1,4 @@
-import { DEFAULT_COLOR_SCHEME } from "../constants";
+import { DEFAULT_COLOR_SCHEME } from "../common/constants";
 import { ColorScheme, ColorUsage } from "../utils/types";
 
 export class ColorService {

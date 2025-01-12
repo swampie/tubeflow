@@ -1,7 +1,7 @@
 import * as PIXI from "pixi.js";
 import { ColorService } from "./color-service";
 import { Coordinates, Process, StrokeOptions } from "../utils/types";
-import { LINE_DEFAULT_WIDTH } from "../constants";
+import { LINE_DEFAULT_WIDTH } from "../common/constants";
 
 export class DrawingService {
   private isDrawing = false;
