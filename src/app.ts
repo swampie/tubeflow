@@ -1,8 +1,8 @@
 import * as PIXI from 'pixi.js';
 import { Viewport } from 'pixi-viewport';
-import { isPointNearLine, normalize } from './util.js';
+import { isPointNearLine } from './util.js';
 import { GlowFilter } from 'pixi-filters';
-import { snapToGrid, drawGrid } from "./common/grid.js";
+import { drawGrid } from "./common/grid.js";
 import {
     LINE_DEFAULT_WIDTH,
     HIGHLIGHTED_LINE_DEFAULT_WIDTH,
@@ -12,12 +12,14 @@ import {
     GHOST_POINT_COLOR,
     DEFAULT_HIGHLIGHT_OPTIONS,
 } from './constants.js';
-import { Coordinates, GridPosition, Process, ToolType } from './utils/types.js';
+import { Coordinates, Process, ToolType } from './utils/types.js';
 import { ColorService } from './services/color-service.js';
 import { DrawingService } from './services/drawing-service.js';
 import { DrawingHandler } from './handlers/drawing-handler.js';
 import { StationService } from './services/station-service.js';
 import { StationHandler } from './handlers/station-handler.js';
+import { ToolService } from './services/tool-service.js';
+import { ToolHandler } from './handlers/tool-handler.js';
 
 let isDrawing = false;
 // main objects storage
@@ -53,41 +55,19 @@ ghostPoint.visible = false; // Start as invisible
 const colorService = new ColorService();
 const drawingService = new DrawingService(colorService, processContainer);
 const stationService = new StationService(stationContainer, drawingService.getAllProcesses());
+const toolService = new ToolService();
 
 // handlers
 const drawingHandler = new DrawingHandler(drawingService, ghostPoint);
 const stationHandler = new StationHandler(stationService, ghostPoint, drawingService.getAllProcesses());
+const toolHandler = new ToolHandler(toolService, drawingService, ghostPoint);
 
 const initializeApp = async () => {
     const canvas = document.getElementById('tube');
-    const lineTool = document.getElementById('line-tool');
-    const selectTool = document.getElementById('select-tool');
-    const duplicateTool = document.getElementById('duplicate-tool');
-    const stationTool = document.getElementById('station-tool'); // New Station tool
-
 
     if (!(canvas instanceof HTMLCanvasElement)) {
         throw new Error("Element with id 'tube' is not a canvas element.");
     }
-
-    // Tool Selection for Line
-    lineTool?.addEventListener('click', () => {
-        setActiveTool("line");
-    });
-
-    // Tool Selection for Select
-    selectTool?.addEventListener('click', () => {
-        setActiveTool("select");
-    });
-
-    // Tool Selection for Duplicate
-    duplicateTool?.addEventListener('click', () => {
-        setActiveTool("duplicate");
-    });
-
-    stationTool?.addEventListener('click', () => {
-        setActiveTool("station");
-    });
 
     // Initialize PIXI Application
     const app = new PIXI.Application();
@@ -124,13 +104,14 @@ const initializeApp = async () => {
     // Single pointermove listener to handle all pointer movements
     viewport.on('pointermove', (event) => {
         const position = viewport.toWorld(event.global);
-
-        if (activeTool === "station") {
+        const currentTool = toolHandler.getCurrentTool();
+    
+        if (currentTool === "station") {
             stationHandler.handleStationPreview(position);
         }
-        if (activeTool === "select" || activeTool === 'duplicate') {
+        if (currentTool === "select" || currentTool === 'duplicate') {
             handleHighlighting(position);
-        } else if (activeTool === "line" && drawingService.isCurrentlyDrawing()) {
+        } else if (currentTool === "line" && drawingService.isCurrentlyDrawing()) {
             drawingHandler.handleDrawingPreview(position);
         }
     });
@@ -145,8 +126,10 @@ const initializeApp = async () => {
     
     viewport.on('pointerdown', (event) => {
         const position = viewport.toWorld(event.global);
-        if (toolHandlers[activeTool]) {
-            toolHandlers[activeTool](position);
+        const currentTool = toolHandler.getCurrentTool();
+        
+        if (toolHandlers[currentTool]) {
+            toolHandlers[currentTool](position);
         }
     });
 
@@ -216,7 +199,7 @@ function handleDuplicate(position) {
     // Create the duplicated line
     const duplicatedLine = new PIXI.Graphics();
     const color = colors.getNextColor()
-    drawLine(duplicatedLine, duplicatedCoords, {color:color, width: LINE_DEFAULT_WIDTH}, duplicatedCoords.length > 4)
+    drawingService.drawLine(duplicatedLine, duplicatedCoords, {color:color, width: LINE_DEFAULT_WIDTH}, duplicatedCoords.length > 4)
     
     // Add the duplicated line to the viewport and processes
     processContainer.addChild(duplicatedLine); // Add to the same container
@@ -268,7 +251,7 @@ function highlightLine(process,options = DEFAULT_HIGHLIGHT_OPTIONS) {
         process.outline.clear();
         process.outline.moveTo(process.coords[0].x, process.coords[0].y);
         
-        drawLine(process.outline, process.coords, {color: process.color, width: HIGHLIGHTED_LINE_DEFAULT_WIDTH,alpha: 0.5}, process.coords.length > 4)
+        drawingService.drawLine(process.outline, process.coords, {color: process.color, width: HIGHLIGHTED_LINE_DEFAULT_WIDTH,alpha: 0.5}, process.coords.length > 4)
         
     }
     // Create and apply a glow filter
@@ -286,35 +269,6 @@ function removeHighlight(process, options = DEFAULT_HIGHLIGHT_OPTIONS) {
             process.outline.clear();
         }
     }
-}
-
-// Function to set the active tool
-function setActiveTool(tool: ToolType) {
-   // Toggle off if the same tool is clicked again
-   if (activeTool === tool) {
-    activeTool = null;
-
-    // Remove active state from all tool buttons
-        document.getElementById('line-tool')!.classList.remove('active');
-        document.getElementById('select-tool')!.classList.remove('active');
-        document.getElementById('duplicate-tool')!.classList.remove('active');
-        document.getElementById('station-tool')!.classList.remove('active');
-
-        resetDrawing(); // Reset drawing state if applicable
-        return;
-    }
-
-    // Set the new active tool
-    activeTool = tool;
-    ghostPoint.visible = false;
-
-    // Update the active state of tool buttons
-    document.getElementById('line-tool')!.classList.toggle('active', tool === "line");
-    document.getElementById('select-tool')!.classList.toggle('active', tool === "select");
-    document.getElementById('duplicate-tool')!.classList.toggle('active', tool === "duplicate");
-    document.getElementById('station-tool')!.classList.toggle('active', tool === "station");
-
-    if (tool !== "line") resetDrawing();
 }
 
 // Resets the line drawing when the line tool is deselected
