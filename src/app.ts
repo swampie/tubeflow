@@ -16,6 +16,8 @@ import { Coordinates, GridPosition, Process, ToolType } from './utils/types.js';
 import { ColorService } from './services/color-service.js';
 import { DrawingService } from './services/drawing-service.js';
 import { DrawingHandler } from './handlers/drawing-handler.js';
+import { StationService } from './services/station-service.js';
+import { StationHandler } from './handlers/station-handler.js';
 
 let isDrawing = false;
 // main objects storage
@@ -42,16 +44,19 @@ const colors = new ColorService();
 // Initialize ghost point for preview
 ghostPoint = new PIXI.Graphics();
 ghostPoint.zIndex = 10000
-
 ghostPoint.fill({color:GHOST_POINT_COLOR}); // Semi-transparent green
 ghostPoint.circle(0, 0, GHOST_POINT_RADIUS); // Small circle as ghost point
 ghostPoint.stroke({width:4, color:0x000}); // Line color border
-    
+ghostPoint.visible = false; // Start as invisible
 
-// services and handlers
+// services
 const colorService = new ColorService();
 const drawingService = new DrawingService(colorService, processContainer);
+const stationService = new StationService(stationContainer, drawingService.getAllProcesses());
+
+// handlers
 const drawingHandler = new DrawingHandler(drawingService, ghostPoint);
+const stationHandler = new StationHandler(stationService, ghostPoint, drawingService.getAllProcesses());
 
 const initializeApp = async () => {
     const canvas = document.getElementById('tube');
@@ -115,15 +120,13 @@ const initializeApp = async () => {
     app.stage.addChild(viewport);
     viewport.addChild(gridContainer);
     viewport.addChild(ghostPoint);
-
-    ghostPoint.visible = false; // Start as invisible
   
     // Single pointermove listener to handle all pointer movements
     viewport.on('pointermove', (event) => {
         const position = viewport.toWorld(event.global);
 
         if (activeTool === "station") {
-            handleStationPreview(position);
+            stationHandler.handleStationPreview(position);
         }
         if (activeTool === "select" || activeTool === 'duplicate') {
             handleHighlighting(position);
@@ -137,7 +140,7 @@ const initializeApp = async () => {
         line: (position) => drawingHandler.handleDrawing(position),
         select: handleHighlighting,
         duplicate: handleDuplicate,
-        station: handleStationPlacement
+        station: (position) => stationHandler.handleStationPlacement(position)
     };
     
     viewport.on('pointerdown', (event) => {
@@ -155,188 +158,6 @@ const initializeApp = async () => {
 
     drawGrid(gridContainer);
 };
-
-// Handle Station Tool: Ghost Preview
-function handleStationPreview(position) {
-    const closeLines = findClosestLines(position);
-
-    if (closeLines.length > 0) {
-        const closestPoint = getClosestPointOnLines(position, closeLines);
-
-        // Move the ghost point to the closest point
-        ghostPoint.position.set(closestPoint.x, closestPoint.y);
-        ghostPoint.visible = true; // Show the ghost point
-
-        // Optionally, you can draw a ghost station symbol here
-        // using a temporary graphics object if desired
-    } else {
-        ghostPoint.visible = false; // Hide if no close lines
-    }
-}
-
-// Handle Station Tool: Place Station
-function handleStationPlacement(position) {
-    const closeLines = findClosestLines(position);
-
-    if (closeLines.length > 0) {
-        const stationCoords = getClosestPointOnLines(position, closeLines);
-
-        // Create station object
-        const stationId = stations.length + 1;
-        const stationName = `station_${stationId}`;
-        const station = {
-            id: stationId,
-            name: stationName,
-            coords: stationCoords,
-            lines: closeLines.map(line => line.id),
-            graphic: null,
-            $graphic: null // Will be set after drawing
-        };
-
-        // Render the station
-        if (closeLines.length === 1) {
-            station.graphic = drawSingleLineStation(closeLines[0], stationCoords);
-        } else {
-            station.graphic = drawMultiLineStation(closeLines, stationCoords);
-        }
-        
-        // Add station to the array
-        stations.push(station);
-    }
-}
-
-// Utility: Find Closest Lines
-function findClosestLines(position): any[] {
-    const closeProcesses = processes.filter(process => isPointNearLine(position, process.coords));
-
-    // Collect all related lines
-    const relatedLines = new Set();
-    closeProcesses.forEach(process => {
-        const allRelated = getAllRelatedLines(process);
-        allRelated.forEach(line => relatedLines.add(line));
-    });
-
-    return Array.from(relatedLines);
-}
-
-// Utility: Get Closest Point on Lines
-function getClosestPointOnLines(position, lines) {
-    let closestPoint = null;
-    let minDistance = Infinity;
-
-    lines.forEach(line => {
-        line.coords.forEach((point, index) => {
-            if (index < line.coords.length - 1) {
-                const segmentStart = line.coords[index];
-                const segmentEnd = line.coords[index + 1];
-                const pointOnSegment = getClosestPointOnSegment(position, segmentStart, segmentEnd);
-
-                const distance = Math.hypot(
-                    position.x - pointOnSegment.x,
-                    position.y - pointOnSegment.y
-                );
-
-                if (distance < minDistance) {
-                    closestPoint = pointOnSegment;
-                    minDistance = distance;
-                }
-            }
-        });
-    });
-
-    return closestPoint;
-}
-
-// Utility: Get Closest Point on a Line Segment
-function getClosestPointOnSegment(p, a, b) {
-    const t = Math.max(0, Math.min(1, ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / ((b.x - a.x) ** 2 + (b.y - a.y) ** 2)));
-    return {
-        x: a.x + t * (b.x - a.x),
-        y: a.y + t * (b.y - a.y),
-    };
-}
-
-// Draw Single Line Station
-function drawSingleLineStation(line, coords) {
-    const station = new PIXI.Graphics();
-    const radius = 5; // Adjust as needed
-
-    
-    station.circle(coords.x, coords.y, radius);
-    station.stroke({width:4, color:0x000}); // Line color border
-    station.fill({color:0xffffff}); // White fill
-    // Add station to a dedicated container or directly to the viewport
-    stationContainer.addChild(station);
-
-    return station;
-    
-}
-
-// Draw Multi-Line Station
-function drawMultiLineStation(lines, coords) {
-    const uniqueLines = Array.from(new Set(lines.map(line => line.id))).map(id => processes.find(p => p.id === id));
-    
-    // Compute the closest point on each line to the given position
-    const closestPoints = uniqueLines.map(line => {
-        return getClosestPointOnLine(coords, line.coords);
-    });
-
-    // Calculate the average position (center point)
-    const center = closestPoints.reduce((acc, point) => {
-        acc.x += point.x;
-        acc.y += point.y;
-        return acc;
-    }, { x: 0, y: 0 });
-
-    center.x /= closestPoints.length;
-    center.y /= closestPoints.length;
-
-    
-    const station = new PIXI.Graphics();
-    const rectWidth = 10;
-    const rectHeight = 10 * uniqueLines.length;
-
-    console.log("w", rectWidth, "h", rectHeight)
-    
-    station.roundRect(
-        center.x - rectWidth / 2,
-        center.y - rectHeight / 2,
-        rectWidth,
-        rectHeight,
-        4
-    );
-    station.fill(0xffffff); // Black border
-    station.stroke({width:3, color: 0x0000})
-    
-    stationContainer.addChild(station);
-    return station
-}
-
-// Utility function to get the closest point on a line to a given position
-function getClosestPointOnLine(position, coords) {
-    let closestPoint = null;
-    let minDistance = Infinity;
-
-    coords.forEach((point, index) => {
-        if (index < coords.length - 1) {
-            const segmentStart = coords[index];
-            const segmentEnd = coords[index + 1];
-            const pointOnSegment = getClosestPointOnSegment(position, segmentStart, segmentEnd);
-
-            const distance = Math.hypot(
-                position.x - pointOnSegment.x,
-                position.y - pointOnSegment.y
-            );
-
-            if (distance < minDistance) {
-                closestPoint = pointOnSegment;
-                minDistance = distance;
-            }
-        }
-    });
-
-    return closestPoint;
-}
 
 // Function to handle highlighting when the "Select" tool is active
 function handleHighlighting(position) {
@@ -419,159 +240,6 @@ hoveredLine.$children.push(newLineId);
 console.log(processes)
 }
 
-
-
-// Function to handle drawing preview (ghost point) when the "Line" tool is active
-function handleDrawingPreview(position: GridPosition) {
-    const snappedPos = snapToGrid(position.x, position.y);
-
-    let { x, y } = snappedPos;
-    const lastPoint = linePoints[linePoints.length - 1];
-
-    // Calculate the ghost point based on angle constraints
-    const angle = Math.atan2(y - lastPoint.y, x - lastPoint.x) * (180 / Math.PI);
-
-    if (Math.abs(angle) % 45 !== 0) {
-        if (Math.abs(angle) < 22.5 || Math.abs(angle) > 157.5) {
-            y = lastPoint.y; // horizontal
-        } else if (Math.abs(angle) < 67.5) {
-            // 45° logic
-            const dx = x - lastPoint.x;
-            const dy = y - lastPoint.y;
-            // enforce dx == ±dy
-            // simplest approach: pick sign from dx/dy
-            const dist = Math.abs(dx);
-            if (Math.abs(dy) > Math.abs(dx)) {
-                // enforce equal magnitude
-                y = lastPoint.y + Math.sign(dy) * dist;
-            } else {
-                x = lastPoint.x + Math.sign(dx) * Math.abs(dy);
-            }
-        } else {
-            x = lastPoint.x; // vertical
-        }
-    }
-
-    ghostPoint.position.set(x, y);
-    
-    ghostPoint.visible = true; // Show the ghost point
-    console.log("show ghost point", ghostPoint.visible)
-}
-
-// Function to handle drawing lines when the "Line" tool is active
-function handleDrawing(event, viewport) {
-    
-    const { x, y } = event;
-
-    if (linePoints.length > 1) {
-        const lastPoint = linePoints[linePoints.length - 1];
-        const distance = Math.hypot(x - lastPoint.x, y - lastPoint.y);
-        if (distance < 15) { // Threshold for completing the line
-            finalizeLine();
-            return;
-        }
-    }
-
-    // Start a new line if it's the first point
-    if (linePoints.length === 0) {
-        activeLine = new PIXI.Graphics();
-        activeColor = colors.getNextColor()
-        processContainer.addChild(activeLine);
-        linePoints.push({ x, y });
-    } else {
-        const lastPoint = linePoints[linePoints.length - 1];
-        let nextPoint = { x, y };
-        const angle = Math.atan2(y - lastPoint.y, x - lastPoint.x) * (180 / Math.PI);
-
-        // Enforce straight lines or 45-degree angles
-        if (Math.abs(angle) % 45 !== 0) {
-            if (Math.abs(angle) < 22.5 || Math.abs(angle) > 157.5) {
-                nextPoint = { x, y: lastPoint.y };
-            } else if (Math.abs(angle) < 67.5) {
-                nextPoint = {
-                    x: lastPoint.x + (x > lastPoint.x ? 1 : -1) * Math.abs(y - lastPoint.y),
-                    y,
-                };
-            } else {
-                nextPoint = { x: lastPoint.x, y };
-            }
-        }
-
-        
-        
-        linePoints.push(nextPoint);
-        drawLine(activeLine, linePoints,{color:activeColor, width: LINE_DEFAULT_WIDTH}, linePoints.length > 4);
-    }
-}
-
-// Finalize the line drawing
-function finalizeLine() {
-    isDrawing = false;
-    ghostPoint.visible = false;
-    
-    // Store the finalized line in processes with metadata
-    const processesCount = processes.length;
-    processes.push({
-        id: processesCount + 1,
-        coords: linePoints,
-        line: activeLine, // Store the activeLine (PIXI.Graphics object) here
-        color: activeColor,
-        $children: [],
-        parent: null
-
-    });
-    
-    linePoints = [];
-    activeLine = null;
-    activeColor = null;
-    document.getElementById('line-tool').classList.remove('active');
-}
-
-// Function to draw the line as points are added
-function drawLine(line,coords, strokeOptions, smooth = false) {
-    if (!line) return;
-
-    line.clear();
-    line.moveTo(coords[0].x, coords[0].y);
-    if(!smooth) {
-        
-        for (let i = 1; i < coords.length; i++) {
-            line.lineTo(coords[i].x, coords[i].y);
-            
-            //drawStation(linePoints[i], linePoints[i - 1], color);
-        }
-    } else {
-            for (let i = 1; i < coords.length; i++) {
-                const prevNode = coords[i - 1];
-                const currNode = coords[i];
-                const prevVector = { x: currNode.x - prevNode.x, y: currNode.y - prevNode.y };
-    
-                if (i < coords.length - 1) {
-                    const nextNode = coords[i + 1];
-                    const nextVector = { x: nextNode.x - currNode.x, y: nextNode.y - currNode.y };
-    
-                    // Normalize vectors
-                    const prevVectorNorm = normalize(prevVector);
-                    const nextVectorNorm = normalize(nextVector);
-    
-                    // Calculate control point as the intersection of the two vectors
-                    const controlPoint = {
-                        x: (prevNode.x + currNode.x) / 2,
-                        y: (prevNode.y + currNode.y) / 2,
-                    };
-    
-                    // Draw a quadratic curve to the next point
-                    line.quadraticCurveTo(controlPoint.x, controlPoint.y, currNode.x, currNode.y);
-                } else {
-                    // For the last point, draw a line
-                    line.lineTo(currNode.x, currNode.y);
-                }
-            }
-            
-    }
-    line.stroke(strokeOptions); // Set line color and width
-}
-
 // Function to highlight a line
 function highlightLine(process,options = DEFAULT_HIGHLIGHT_OPTIONS) {
     if (process.highlighted) return; // Skip if already highlighted
@@ -619,38 +287,6 @@ function removeHighlight(process, options = DEFAULT_HIGHLIGHT_OPTIONS) {
         }
     }
 }
-
-function getAllRelatedLines(line) {
-    const relatedLines = new Set();
-    const toProcess = [line];
-
-    while (toProcess.length > 0) {
-        const currentLine = toProcess.pop();
-        if (relatedLines.has(currentLine.id)) continue;
-        relatedLines.add(currentLine.id);
-
-        // Add parent line
-        if (currentLine.$parent !== null) {
-            const parentLine = processes.find(p => p.id === currentLine.$parent);
-            if (parentLine) {
-                toProcess.push(parentLine);
-            }
-        }
-
-        // Add child lines
-        if (currentLine.$children && currentLine.$children.length > 0) {
-            currentLine.$children.forEach(childId => {
-                const childLine = processes.find(p => p.id === childId);
-                if (childLine) {
-                    toProcess.push(childLine);
-                }
-            });
-        }
-    }
-
-    return Array.from(relatedLines).map(id => processes.find(p => p.id === id));
-}
-
 
 // Function to set the active tool
 function setActiveTool(tool: ToolType) {
