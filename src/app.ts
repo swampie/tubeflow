@@ -14,6 +14,8 @@ import {
 } from './constants.js';
 import { Coordinates, GridPosition, Process, ToolType } from './utils/types.js';
 import { ColorService } from './services/color-service.js';
+import { DrawingService } from './services/drawing-service.js';
+import { DrawingHandler } from './handlers/drawing-handler.js';
 
 let isDrawing = false;
 // main objects storage
@@ -27,15 +29,29 @@ let activeColor: number | null = null;
 let ghostPoint: PIXI.Graphics | null = null;
 let activeTool: ToolType = null;
 let hoveredLine: Process | null = null;
+
 //containers
 const stationContainer = new PIXI.Container();
 const processContainer = new PIXI.Container();
 const gridContainer = new PIXI.Container();
 gridContainer.zIndex = 0; // Ensure it’s behind other layers
 
-
 // utils
 const colors = new ColorService();
+
+// Initialize ghost point for preview
+ghostPoint = new PIXI.Graphics();
+ghostPoint.zIndex = 10000
+
+ghostPoint.fill({color:GHOST_POINT_COLOR}); // Semi-transparent green
+ghostPoint.circle(0, 0, GHOST_POINT_RADIUS); // Small circle as ghost point
+ghostPoint.stroke({width:4, color:0x000}); // Line color border
+    
+
+// services and handlers
+const colorService = new ColorService();
+const drawingService = new DrawingService(colorService, processContainer);
+const drawingHandler = new DrawingHandler(drawingService, ghostPoint);
 
 const initializeApp = async () => {
     const canvas = document.getElementById('tube');
@@ -68,9 +84,6 @@ const initializeApp = async () => {
         setActiveTool("station");
     });
 
-
-    
-
     // Initialize PIXI Application
     const app = new PIXI.Application();
     await app.init({
@@ -101,20 +114,10 @@ const initializeApp = async () => {
     viewport.drag().pinch().wheel().decelerate();
     app.stage.addChild(viewport);
     viewport.addChild(gridContainer);
-
-
-    // Initialize ghost point for preview
-    ghostPoint = new PIXI.Graphics();
-    ghostPoint.zIndex = 10000
-    
-    ghostPoint.fill({color:GHOST_POINT_COLOR}); // Semi-transparent green
-    ghostPoint.circle(0, 0, GHOST_POINT_RADIUS); // Small circle as ghost point
-    ghostPoint.stroke({width:4, color:0x000}); // Line color border
-    
     viewport.addChild(ghostPoint);
+
     ghostPoint.visible = false; // Start as invisible
   
-
     // Single pointermove listener to handle all pointer movements
     viewport.on('pointermove', (event) => {
         const position = viewport.toWorld(event.global);
@@ -124,14 +127,14 @@ const initializeApp = async () => {
         }
         if (activeTool === "select" || activeTool === 'duplicate') {
             handleHighlighting(position);
-        } else if (activeTool === "line" && linePoints.length > 0) {
-            handleDrawingPreview(position);
+        } else if (activeTool === "line" && drawingService.isCurrentlyDrawing()) {
+            drawingHandler.handleDrawingPreview(position);
         }
     });
 
     // Handle line drawing on pointer down
     const toolHandlers = {
-        line: handleDrawing,
+        line: (position) => drawingHandler.handleDrawing(position),
         select: handleHighlighting,
         duplicate: handleDuplicate,
         station: handleStationPlacement
@@ -140,9 +143,10 @@ const initializeApp = async () => {
     viewport.on('pointerdown', (event) => {
         const position = viewport.toWorld(event.global);
         if (toolHandlers[activeTool]) {
-            toolHandlers[activeTool](position, viewport);
+            toolHandlers[activeTool](position);
         }
     });
+
     processContainer.zIndex = 1; // Lower zIndex for lines
     viewport.addChild(processContainer);
 
@@ -666,6 +670,7 @@ function setActiveTool(tool: ToolType) {
 
     // Set the new active tool
     activeTool = tool;
+    ghostPoint.visible = false;
 
     // Update the active state of tool buttons
     document.getElementById('line-tool')!.classList.toggle('active', tool === "line");
@@ -684,7 +689,5 @@ function resetDrawing() {
         activeLine = null;
     }
 }
-
-
 
 initializeApp().catch(console.error);
