@@ -1,0 +1,22 @@
+Service-based Architecture
+Introduces services and managers to handle state
+and provides better separation of concerns.
+
+src/
+├── services/
+│   ├── DrawingService.ts
+│   ├── StationService.ts
+│   ├── ToolService.ts
+│   └── StateManager.ts
+├── components/
+│   ├── Line.ts
+│   ├── Station.ts
+│   └── Grid.ts
+├── handlers/
+│   ├── drawingHandlers.ts
+│   ├── stationHandlers.ts
+│   └── toolHandlers.ts
+├── utils/
+│   ├── geometryUtils.ts
+│   └── renderUtils.ts
+└── app.ts

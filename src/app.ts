@@ -1,7 +1,6 @@
 import * as PIXI from 'pixi.js';
 import { Viewport } from 'pixi-viewport';
 import { isPointNearLine, normalize } from './util.js';
-import { Colors } from './common/colors.js';
 import { GlowFilter } from 'pixi-filters';
 import { snapToGrid, drawGrid } from "./common/grid.js";
 import {
@@ -13,7 +12,8 @@ import {
     GHOST_POINT_COLOR,
     DEFAULT_HIGHLIGHT_OPTIONS,
 } from './constants.js';
-import { Coordinates, GridPosition, Process, ToolType } from './common/types.js';
+import { Coordinates, GridPosition, Process, ToolType } from './utils/types.js';
+import { ColorService } from './services/color-service.js';
 
 let isDrawing = false;
 // main objects storage
@@ -35,7 +35,7 @@ gridContainer.zIndex = 0; // Ensure it’s behind other layers
 
 
 // utils
-const colors = new Colors();
+const colors = new ColorService();
 
 const initializeApp = async () => {
     const canvas = document.getElementById('tube');
@@ -390,7 +390,7 @@ function handleDuplicate(position) {
 
     // Create the duplicated line
     const duplicatedLine = new PIXI.Graphics();
-    const color = colors.nextColor()
+    const color = colors.getNextColor()
     drawLine(duplicatedLine, duplicatedCoords, {color:color, width: LINE_DEFAULT_WIDTH}, duplicatedCoords.length > 4)
     
     // Add the duplicated line to the viewport and processes
@@ -471,7 +471,7 @@ function handleDrawing(event, viewport) {
     // Start a new line if it's the first point
     if (linePoints.length === 0) {
         activeLine = new PIXI.Graphics();
-        activeColor = colors.nextColor()
+        activeColor = colors.getNextColor()
         processContainer.addChild(activeLine);
         linePoints.push({ x, y });
     } else {

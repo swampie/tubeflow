@@ -44,3 +44,13 @@ export interface GridPosition {
 }
 
 export type ToolType = "line" | "select" | "duplicate" | "station" | null;
+
+// Colors
+export interface ColorScheme {
+  readonly colors: readonly number[];
+}
+
+export interface ColorUsage {
+  color: number;
+  usageCount: number;
+}
