@@ -20,6 +20,8 @@ import { StationService } from './services/station-service.js';
 import { StationHandler } from './handlers/station-handler.js';
 import { ToolService } from './services/tool-service.js';
 import { ToolHandler } from './handlers/tool-handler.js';
+import { SelectService } from './services/select-service.js';
+import { SelectHandler } from './handlers/select-handler.js';
 
 let isDrawing = false;
 // main objects storage
@@ -56,8 +58,10 @@ const colorService = new ColorService();
 const drawingService = new DrawingService(colorService, processContainer);
 const stationService = new StationService(stationContainer, drawingService.getAllProcesses());
 const toolService = new ToolService();
+const selectService = new SelectService(drawingService);
 
 // handlers
+const selectHandler = new SelectHandler(selectService, drawingService.getAllProcesses());
 const drawingHandler = new DrawingHandler(drawingService, ghostPoint);
 const stationHandler = new StationHandler(stationService, ghostPoint, drawingService.getAllProcesses());
 const toolHandler = new ToolHandler(toolService, drawingService, ghostPoint);
@@ -110,7 +114,7 @@ const initializeApp = async () => {
             stationHandler.handleStationPreview(position);
         }
         if (currentTool === "select" || currentTool === 'duplicate') {
-            handleHighlighting(position);
+            selectHandler.handleHighlighting(position);
         } else if (currentTool === "line" && drawingService.isCurrentlyDrawing()) {
             drawingHandler.handleDrawingPreview(position);
         }
@@ -119,7 +123,7 @@ const initializeApp = async () => {
     // Handle line drawing on pointer down
     const toolHandlers = {
         line: (position) => drawingHandler.handleDrawing(position),
-        select: handleHighlighting,
+        select: (position) => selectHandler.handleHighlighting(position),
         duplicate: handleDuplicate,
         station: (position) => stationHandler.handleStationPlacement(position)
     };
@@ -141,25 +145,6 @@ const initializeApp = async () => {
 
     drawGrid(gridContainer);
 };
-
-// Function to handle highlighting when the "Select" tool is active
-function handleHighlighting(position) {
-    let foundHover = false;
-    processes.forEach((process) => {
-        if (isPointNearLine(position, process.coords)) {
-            if (hoveredLine !== process) {
-                if (hoveredLine) removeHighlight(hoveredLine); // Remove previous highlight
-                hoveredLine = highlightLine(process); // Highlight the new line
-            }
-            foundHover = true;
-        }
-    });
-
-    if (!foundHover && hoveredLine) {
-        removeHighlight(hoveredLine);
-        hoveredLine = null;
-    }
-}
 
 function handleDuplicate(position) {
     if (!hoveredLine) return;
@@ -221,54 +206,6 @@ function handleDuplicate(position) {
 }
 hoveredLine.$children.push(newLineId);
 console.log(processes)
-}
-
-// Function to highlight a line
-function highlightLine(process,options = DEFAULT_HIGHLIGHT_OPTIONS) {
-    if (process.highlighted) return; // Skip if already highlighted
-    process.highlighted = true;
-
-    if(options.glow) {
-        if (!process.glowFilter) {
-            process.glowFilter = new GlowFilter({
-                distance: 15, // Glow distance
-                outerStrength: 2, // Outer glow intensity
-                innerStrength: 1, // Inner glow intensity
-                color: 0xffff00, // Glow color (yellow)
-                quality: 0.5, // Rendering quality
-            });
-        }
-    
-        // Apply the glow filter to the line
-        process.line.filters = [process.glowFilter]; 
-    } else {
-        if (!process.outline) {
-            process.outline = new PIXI.Graphics();
-            process.line.parent.addChildAt(process.outline, process.line.parent.getChildIndex(process.line));
-        }
-    
-        // Draw the outline
-        process.outline.clear();
-        process.outline.moveTo(process.coords[0].x, process.coords[0].y);
-        
-        drawingService.drawLine(process.outline, process.coords, {color: process.color, width: HIGHLIGHTED_LINE_DEFAULT_WIDTH,alpha: 0.5}, process.coords.length > 4)
-        
-    }
-    // Create and apply a glow filter
-    
-    return process
-}
-
-function removeHighlight(process, options = DEFAULT_HIGHLIGHT_OPTIONS) {
-    if (!process.highlighted) return; // Skip if not highlighted
-    process.highlighted = false;
-    if(options.glow) {
-        process.line.filters = [];
-    } else {
-        if (process.outline) {
-            process.outline.clear();
-        }
-    }
 }
 
 // Resets the line drawing when the line tool is deselected
