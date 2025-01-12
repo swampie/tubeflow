@@ -1,5 +1,5 @@
 import { SelectService } from "../services/select-service";
-import { isPointNearLine } from "../util";
+import { isPointNearLine } from "../utils/geometry-utils";
 import { Process, Coordinates } from "../utils/types";
 
 export class SelectHandler {

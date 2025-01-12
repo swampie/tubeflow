@@ -1,8 +1,7 @@
 import * as PIXI from "pixi.js";
 import { StationService } from "../services/station-service";
-import { isPointNearLine } from "../util";
 import { Process, Coordinates } from "../utils/types";
-import { getClosestPointOnLines } from "../utils/geometry-utils";
+import { getClosestPointOnLines, isPointNearLine } from "../utils/geometry-utils";
 
 export class StationHandler {
   constructor(
