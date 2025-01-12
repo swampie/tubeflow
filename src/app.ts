@@ -13,7 +13,7 @@ import {
     GHOST_POINT_COLOR,
     DEFAULT_HIGHLIGHT_OPTIONS,
 } from './constants.js';
-import { Coordinates, Process, ToolType } from './types.js';
+import { Coordinates, GridPosition, Process, ToolType } from './common/types.js';
 
 let isDrawing = false;
 // main objects storage
@@ -418,7 +418,7 @@ console.log(processes)
 
 
 // Function to handle drawing preview (ghost point) when the "Line" tool is active
-function handleDrawingPreview(position) {
+function handleDrawingPreview(position: GridPosition) {
     const snappedPos = snapToGrid(position.x, position.y);
 
     let { x, y } = snappedPos;

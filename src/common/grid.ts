@@ -4,8 +4,9 @@ import {
   WORLD_WIDTH,
   WORLD_HEIGHT,
 } from '../constants.js'
+import { GridPosition } from './types.js';
 
-export function snapToGrid(x, y, gridSize = GRID_SIZE) {
+export function snapToGrid(x: number, y: number, gridSize: number = GRID_SIZE): GridPosition {
   const snappedX = Math.floor((x + gridSize / 2) / gridSize) * gridSize;
   const snappedY = Math.floor((y + gridSize / 2) / gridSize) * gridSize;
 
