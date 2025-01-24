@@ -58,3 +58,51 @@ button.tool.active {
   background-color: #333;
   color: white;
 }
+
+.properties-drawer {
+    position: fixed;
+    right: -300px;
+    top: 0;
+    width: 300px;
+    height: 100%;
+    background: lightblue;
+    box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+    transition: right 0.3s ease;
+    z-index: 1000;
+}
+
+.properties-drawer.open {
+    right: 0;
+}
+
+.drawer-header {
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.property-section {
+    padding: 15px;
+    display: none;
+}
+
+.property-section label {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.property-section input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}

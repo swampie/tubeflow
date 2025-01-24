@@ -61,6 +61,8 @@ export class DrawingService {
     return this.linePoints;
   }
 
+
+
   isCurrentlyDrawing(): boolean {
     return this.isDrawing;
   }

@@ -54,7 +54,7 @@ const duplicateService = new DuplicateService(
 
 
 // handlers
-const selectHandler = new SelectHandler(selectService, drawingService.getAllProcesses());
+const selectHandler = new SelectHandler(selectService, drawingService.getAllProcesses(), stationService.getAllStations());
 const drawingHandler = new DrawingHandler(drawingService, ghostPoint);
 const stationHandler = new StationHandler(stationService, ghostPoint, drawingService.getAllProcesses());
 const toolHandler = new ToolHandler(toolService, drawingService, ghostPoint);
@@ -118,7 +118,7 @@ const initializeApp = async () => {
     // Handle line drawing on pointer down
     const toolHandlers = {
         line:      (position: Coordinates) => drawingHandler.handleDrawing(position),
-        select:    (position: Coordinates) => selectHandler.handleHighlighting(position),
+        select:    (position: Coordinates) => selectHandler.handleSelection(position),
         duplicate: (position: Coordinates) => duplicateHandler.handleDuplicate(position),
         station:   (position: Coordinates) => stationHandler.handleStationPlacement(position)
     };
