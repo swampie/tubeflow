@@ -26,9 +26,30 @@
 
         <!-- Main Canvas Section for Viewport -->
         <div class="canvas-container">
-            <canvas id="tube" style="width: 100%; height: 100%;"></canvas>
+            <canvas id="tube" style="width: 80%; height: 80%;"></canvas>
+        </div>
+
+    <!-- Properties Drawer -->
+    <div id="properties-drawer" class="properties-drawer">
+        <div class="drawer-header">
+            <h3>Properties</h3>
+            <button id="close-drawer" class="close-button">×</button>
+        </div>
+        <div class="drawer-content">
+            <!-- Station Properties -->
+            <div id="station-properties" class="property-section">
+                <label for="station-name">Name:</label>
+                <input type="text" id="station-name" />
+            </div>
+            
+            <!-- Line Properties -->
+            <div id="line-properties" class="property-section">
+                <label for="line-color">Color:</label>
+                <input type="color" id="line-color" />
+            </div>
         </div>
     </div>
+</div>
 
     <script type="module" src="app.ts"></script>
 </body>

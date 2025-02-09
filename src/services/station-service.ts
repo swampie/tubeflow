@@ -4,6 +4,10 @@ import { Station, Process, Coordinates } from "../utils/types";
 export class StationService {
   private stations: Station[] = [];
 
+ getAllStations(): Station[] {
+    return this.stations;
+ }
+
   constructor(
     private stationContainer: PIXI.Container,
     private processes: Process[] // Reference to processes array
