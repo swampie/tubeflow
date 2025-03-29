@@ -5,9 +5,9 @@ TubeFlow is a web-based tube map designer built with TypeScript and PIXI.js, foc
 This project is in early development phase (pre-v1). Core drawing and interaction systems are not yet entirely functional.
 
 ## 🛠️ Tech Stack
-TypeScript - For type safety and improved developer experience
-PIXI.js - WebGL-based rendering engine for high-performance graphics
-Parcel - For bundling and development server
+- TypeScript - For type safety and improved developer experience
+- PIXI.js - WebGL-based rendering engine for high-performance graphics
+- Parcel - For bundling and development server
 
 ## 🏗️ Architecture
 TubeFlow uses a modular, service-oriented architecture designed for maintainability and separation of concerns:
