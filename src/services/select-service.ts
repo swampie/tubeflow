@@ -1,5 +1,5 @@
 import * as PIXI from "pixi.js";
-import { Process } from "../utils/types";
+import { Process, Station } from "../utils/types";
 import { GlowFilter } from "pixi-filters";
 import {
   DEFAULT_HIGHLIGHT_OPTIONS,
@@ -7,12 +7,110 @@ import {
 } from "../common/constants";
 import { DrawingService } from "./drawing-service";
 
+export type SelectableElement = Process | Station;
+
 export class SelectService {
-  private hoveredLine: Process | null = null;
+  private hoveredElement: SelectableElement | null = null;
+  private selectedElement: SelectableElement | null = null;
+  private dataPanelEl: HTMLElement;
+  private stationProps: HTMLElement;
+  private lineProps: HTMLElement;
 
   constructor(
     private drawingService: DrawingService,
-  ) {}
+  ) {
+    this.dataPanelEl = document.getElementById('data-panel')!;
+    this.stationProps = document.getElementById('station-properties')!;
+    this.lineProps = document.getElementById('line-properties')!;
+    this.setupDrawerListeners();
+  }
+
+  private setupDrawerListeners() {
+    document.getElementById('close-drawer')?.addEventListener('click', () => {
+      this.clearSelection();
+    });
+
+    document.getElementById('station-name')?.addEventListener('change', (e) => {
+      if (this.selectedElement && 'name' in this.selectedElement) {
+        this.updateStationName(this.selectedElement, (e.target as HTMLInputElement).value);
+      }
+    });
+
+    document.getElementById('line-color')?.addEventListener('change', (e) => {
+      if (this.selectedElement && !('name' in this.selectedElement)) {
+        this.updateLineColor(this.selectedElement, parseInt((e.target as HTMLInputElement).value.slice(1), 16));
+      }
+    });
+  }
+
+  selectElement(element: SelectableElement): void {
+    this.selectedElement = element;
+    this.showSelectPanel();
+    this.updateDrawerContent();
+  }
+
+  private showSelectPanel(): void {
+    this.dataPanelEl.classList.add('open');
+  }
+
+  private hideSelectPanel(): void {
+    this.dataPanelEl.classList.remove('open');
+  }
+
+  private updateDrawerContent(): void {
+    if (!this.selectedElement) return;
+
+    if ('name' in this.selectedElement) {
+      // Station properties
+      this.stationProps.style.display = 'block';
+      this.lineProps.style.display = 'none';
+      (document.getElementById('station-name') as HTMLInputElement).value = this.selectedElement.name;
+    } else {
+      // Line properties
+      this.stationProps.style.display = 'none';
+      this.lineProps.style.display = 'block';
+      (document.getElementById('line-color') as HTMLInputElement).value = 
+        '#' + this.selectedElement.color.toString(16).padStart(6, '0');
+    }
+  }
+
+  private updateStationName(station: Station, newName: string): void {
+    station.name = newName;
+    // Update station visual label
+    if (station.graphic) {
+      // Remove existing label if any
+      const existingLabel = station.graphic.children.find(child => child instanceof PIXI.Text);
+      if (existingLabel) station.graphic.removeChild(existingLabel);
+      
+      // Add new label
+      const label = new PIXI.Text({
+        text: newName,
+        position: { x: station.coords.x, y: station.coords.y - 20 },
+        style: {
+          fontFamily: 'Arial',
+          fontSize: 12,
+          fill: 0x000000
+        }
+        
+      });
+      station.graphic.addChild(label);
+    }
+  }
+
+  private updateLineColor(line: Process, newColor: number): void {
+    line.color = newColor;
+    this.drawingService.drawLine(
+      line.line, 
+      line.coords, 
+      { color: newColor, width: line.line.width },
+      line.coords.length > 4
+    );
+  }
+
+  clearSelection(): void {
+    this.selectedElement = null;
+    this.hideSelectPanel();
+  }
 
   highlightLine(
     process: Process,
@@ -58,33 +156,34 @@ export class SelectService {
     return process;
   }
 
-  removeHighlight(process: Process, options = DEFAULT_HIGHLIGHT_OPTIONS): void {
-    if (!process.highlighted) return;
-    process.highlighted = false;
+  removeHighlight(selected: SelectableElement, options = DEFAULT_HIGHLIGHT_OPTIONS): void {
+    
+    if (!selected.highlighted) return;
+    selected.highlighted = false;
 
     if (options.glow) {
-      process.line.filters = [];
+      (selected as Process).line.filters = [];
     } else {
-      if (process.outline) {
-        process.outline.clear();
+      if ((selected as Process).outline) {
+        (selected as Process).outline.clear();
       }
     }
   }
 
   setHoveredLine(process: Process | null): void {
-    if (this.hoveredLine === process) return;
+    if (this.hoveredElement === process) return;
 
-    if (this.hoveredLine) {
-      this.removeHighlight(this.hoveredLine);
+    if (this.hoveredElement) {
+      this.removeHighlight(this.hoveredElement);
     }
 
-    this.hoveredLine = process;
+    this.hoveredElement = process;
     if (process) {
       this.highlightLine(process);
     }
   }
 
   getHoveredLine(): Process | null {
-    return this.hoveredLine;
+    return this.hoveredElement as Process;
   }
 }

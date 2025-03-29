@@ -16,19 +16,35 @@
     </div>
 
     <div class="main-container">
-        <!-- Left Palette Section -->
-        <div class="palette">
-          <button class="tool" data:tool="line" id="line-tool">Line</button>
-          <button class="tool" data:tool="select" id="select-tool">Select</button>
-          <button class="tool" data:tool="duplicate" id="duplicate-tool">Duplicate</button>
-          <button class="tool" data:tool="station" id="station-tool">Station</button>
-      </div>
+        <!-- Left panel Section -->
+        <div class="panel">
+            <div class="panel___buttons-menu">
+                <button class="tool" data:tool="line" id="line-tool">Line</button>
+                <button class="tool" data:tool="select" id="select-tool">Select</button>
+                <button class="tool" data:tool="duplicate" id="duplicate-tool">Duplicate</button>
+                <button class="tool" data:tool="station" id="station-tool">Station</button>
+            </div>
+            
+            <div id="data-panel" class="panel__data">
+                <!-- Station Properties -->
+                <div id="station-properties" class="property-section">
+                    <label for="station-name">Station name:</label>
+                    <input type="text" id="station-name" />
+                </div>
+                
+                <!-- Line Properties -->
+                <div id="line-properties" class="property-section">
+                    <label for="line-color">Line color:</label>
+                    <input type="color" id="line-color" />
+                </div>
+            </div>
+        </div>
 
         <!-- Main Canvas Section for Viewport -->
         <div class="canvas-container">
-            <canvas id="tube" style="width: 100%; height: 100%;"></canvas>
+            <canvas id="tube" style="width: 80%; height: 80%;"></canvas>
         </div>
-    </div>
+</div>
 
     <script type="module" src="app.ts"></script>
 </body>

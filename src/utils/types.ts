@@ -25,7 +25,8 @@ export interface Station {
   name: string;
   coords: Coordinates;
   lines: number[];
-  graphic: PIXI.Graphics;
+  highlighted?: boolean;
+  graphic: PIXI.Graphics | null;
 }
 
 export interface HighlightOptions {
