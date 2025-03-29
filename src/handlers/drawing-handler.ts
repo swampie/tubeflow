@@ -29,21 +29,26 @@ export class DrawingHandler {
   }
 
   handleDrawingPreview(position: GridPosition) {
-    if (!this.drawingService.isCurrentlyDrawing()) return;
-  
+    // Snap to grid first
+    const snappedPos = snapToGrid(position.x, position.y);
+    
+    // If not currently drawing, just show the ghost point at the snapped position
+    if (!this.drawingService.isCurrentlyDrawing()) {
+      this.ghostPoint.position.set(snappedPos.x, snappedPos.y);
+      this.ghostPoint.visible = true;
+      return;
+    }
+    
+    // If we are drawing, apply the angle constraints
     const linePoints = this.drawingService.getActiveLinePoints();
+    if (linePoints.length === 0) return;
+    
     const lastPoint = linePoints[linePoints.length - 1];
-    
-    // First calculate the direction/angle
     const angle = Math.atan2(position.y - lastPoint.y, position.x - lastPoint.x) * (180 / Math.PI);
-    
-    // Get the direction-constrained line without grid alignment
     const directionConstrained = this.constrainToAngles(position.x, position.y, lastPoint, angle);
+    const finalSnappedPoint = snapToGrid(directionConstrained.x, directionConstrained.y);
     
-    // Now snap to grid AFTER determining direction
-    const snappedPoint = snapToGrid(directionConstrained.x, directionConstrained.y);
-    
-    this.ghostPoint.position.set(snappedPoint.x, snappedPoint.y);
+    this.ghostPoint.position.set(finalSnappedPoint.x, finalSnappedPoint.y);
     this.ghostPoint.visible = true;
   }
   

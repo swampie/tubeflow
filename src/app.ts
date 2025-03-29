@@ -107,10 +107,10 @@ const initializeApp = async () => {
     
         if (currentTool === "station") {
             stationHandler.handleStationPreview(position);
-        }
-        if (currentTool === "select" || currentTool === 'duplicate') {
+        } else if (currentTool === "select" || currentTool === 'duplicate') {
             selectHandler.handleHighlighting(position);
-        } else if (currentTool === "line" && drawingService.isCurrentlyDrawing()) {
+        } else if (currentTool === "line") {
+            // Remove the isCurrentlyDrawing condition to show preview as soon as Line tool is selected
             drawingHandler.handleDrawingPreview(position);
         }
     });
@@ -123,6 +123,7 @@ const initializeApp = async () => {
         station:   (position: Coordinates) => stationHandler.handleStationPlacement(position)
     };
     
+    // Handle pointer down events for different tools
     viewport.on('pointerdown', (event) => {
         const position = viewport.toWorld(event.global);
         const currentTool = toolHandler.getCurrentTool();
