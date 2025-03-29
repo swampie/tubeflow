@@ -78,7 +78,7 @@ const initializeApp = async () => {
         antialias: true,
         resolution: 2,
         autoDensity: true
-    })
+    });
 
     const viewport = new Viewport({
         screenWidth: window.innerWidth,
@@ -110,7 +110,6 @@ const initializeApp = async () => {
         } else if (currentTool === "select" || currentTool === 'duplicate') {
             selectHandler.handleHighlighting(position);
         } else if (currentTool === "line") {
-            // Remove the isCurrentlyDrawing condition to show preview as soon as Line tool is selected
             drawingHandler.handleDrawingPreview(position);
         }
     });
