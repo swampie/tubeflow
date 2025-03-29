@@ -12,14 +12,14 @@ export type SelectableElement = Process | Station;
 export class SelectService {
   private hoveredElement: SelectableElement | null = null;
   private selectedElement: SelectableElement | null = null;
-  private drawer: HTMLElement;
+  private dataPanelEl: HTMLElement;
   private stationProps: HTMLElement;
   private lineProps: HTMLElement;
 
   constructor(
     private drawingService: DrawingService,
   ) {
-    this.drawer = document.getElementById('properties-drawer')!;
+    this.dataPanelEl = document.getElementById('data-panel')!;
     this.stationProps = document.getElementById('station-properties')!;
     this.lineProps = document.getElementById('line-properties')!;
     this.setupDrawerListeners();
@@ -45,16 +45,16 @@ export class SelectService {
 
   selectElement(element: SelectableElement): void {
     this.selectedElement = element;
-    this.showDrawer();
+    this.showSelectPanel();
     this.updateDrawerContent();
   }
 
-  private showDrawer(): void {
-    this.drawer.classList.add('open');
+  private showSelectPanel(): void {
+    this.dataPanelEl.classList.add('open');
   }
 
-  private hideDrawer(): void {
-    this.drawer.classList.remove('open');
+  private hideSelectPanel(): void {
+    this.dataPanelEl.classList.remove('open');
   }
 
   private updateDrawerContent(): void {
@@ -109,7 +109,7 @@ export class SelectService {
 
   clearSelection(): void {
     this.selectedElement = null;
-    this.hideDrawer();
+    this.hideSelectPanel();
   }
 
   highlightLine(
