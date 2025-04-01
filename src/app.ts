@@ -78,7 +78,7 @@ const initializeApp = async () => {
         antialias: true,
         resolution: 2,
         autoDensity: true
-    })
+    });
 
     const viewport = new Viewport({
         screenWidth: window.innerWidth,
@@ -107,10 +107,9 @@ const initializeApp = async () => {
     
         if (currentTool === "station") {
             stationHandler.handleStationPreview(position);
-        }
-        if (currentTool === "select" || currentTool === 'duplicate') {
+        } else if (currentTool === "select" || currentTool === 'duplicate') {
             selectHandler.handleHighlighting(position);
-        } else if (currentTool === "line" && drawingService.isCurrentlyDrawing()) {
+        } else if (currentTool === "line") {
             drawingHandler.handleDrawingPreview(position);
         }
     });
@@ -123,6 +122,7 @@ const initializeApp = async () => {
         station:   (position: Coordinates) => stationHandler.handleStationPlacement(position)
     };
     
+    // Handle pointer down events for different tools
     viewport.on('pointerdown', (event) => {
         const position = viewport.toWorld(event.global);
         const currentTool = toolHandler.getCurrentTool();
