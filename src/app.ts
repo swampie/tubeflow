@@ -1,4 +1,10 @@
 import * as PIXI from 'pixi.js';
+import {
+    WORLD_WIDTH,
+    WORLD_HEIGHT,
+    GHOST_POINT_RADIUS,
+    GHOST_POINT_COLOR,
+} from './common/constants.js';
 
 import { Viewport } from 'pixi-viewport';
 import { drawGrid } from "./common/grid.js";
@@ -13,13 +19,6 @@ import { SelectService } from './services/select-service.js';
 import { SelectHandler } from './handlers/select-handler.js';
 import { DuplicateService } from './services/duplicate-service.js';
 import { DuplicateHandler } from './handlers/duplicate-handler.js';
-
-import {
-    WORLD_WIDTH,
-    WORLD_HEIGHT,
-    GHOST_POINT_RADIUS,
-    GHOST_POINT_COLOR,
-} from './common/constants.js';
 import { Coordinates } from './utils/types.js';
 
 // temporary artifacts
@@ -31,20 +30,19 @@ const processContainer = new PIXI.Container();
 const gridContainer = new PIXI.Container();
 gridContainer.zIndex = 0; // Ensure it’s behind other layers
 
-// Initialize ghost point for preview
-ghostPoint = new PIXI.Graphics();
-ghostPoint.zIndex = 10000
-ghostPoint.fill({color:GHOST_POINT_COLOR}); // Semi-transparent green
+ghostPoint = new PIXI.Graphics();            // Initialize ghost point for preview
+ghostPoint.zIndex = 10000                    // Ensure it’s on top of everything
+ghostPoint.fill({color:GHOST_POINT_COLOR});  // Semi-transparent green
 ghostPoint.circle(0, 0, GHOST_POINT_RADIUS); // Small circle as ghost point
-ghostPoint.stroke({width:4, color:0x000}); // Line color border
-ghostPoint.visible = false; // Start as invisible
+ghostPoint.stroke({width:4, color:0x000});   // Line color border
+ghostPoint.visible = false;                  // Start as invisible
 
 // services
-const colorService = new ColorService();
-const drawingService = new DrawingService(colorService, processContainer);
-const stationService = new StationService(stationContainer, drawingService.getAllProcesses());
-const toolService = new ToolService();
-const selectService = new SelectService(drawingService);
+const colorService     = new ColorService();
+const drawingService   = new DrawingService(colorService, processContainer);
+const stationService   = new StationService(stationContainer, drawingService.getAllProcesses());
+const toolService      = new ToolService();
+const selectService    = new SelectService(drawingService);
 const duplicateService = new DuplicateService(
     drawingService,
     colorService,
@@ -54,10 +52,10 @@ const duplicateService = new DuplicateService(
 
 
 // handlers
-const selectHandler = new SelectHandler(selectService, drawingService.getAllProcesses(), stationService.getAllStations());
-const drawingHandler = new DrawingHandler(drawingService, ghostPoint);
-const stationHandler = new StationHandler(stationService, ghostPoint, drawingService.getAllProcesses());
-const toolHandler = new ToolHandler(toolService, drawingService, ghostPoint);
+const selectHandler    = new SelectHandler(selectService, drawingService.getAllProcesses(), stationService.getAllStations());
+const drawingHandler   = new DrawingHandler(drawingService, ghostPoint);
+const stationHandler   = new StationHandler(stationService, ghostPoint, drawingService.getAllProcesses());
+const toolHandler      = new ToolHandler(toolService, drawingService, ghostPoint);
 const duplicateHandler = new DuplicateHandler(duplicateService, selectService);
 
 // bootstrapping the application
