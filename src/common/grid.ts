@@ -7,13 +7,18 @@ import {
 import { GridPosition } from '../utils/types.js';
 
 export function snapToGrid(x: number, y: number, gridSize: number = GRID_SIZE): GridPosition {
-  const snappedX = Math.floor((x + gridSize / 2) / gridSize) * gridSize;
-  const snappedY = Math.floor((y + gridSize / 2) / gridSize) * gridSize;
-
-  // Ensure we stay within world bounds
+  // Clamp to world bounds
+  const clampedX = Math.min(Math.max(x, 0), WORLD_WIDTH);
+  const clampedY = Math.min(Math.max(y, 0), WORLD_HEIGHT);
+  
+  // Calculate the nearest grid line for each coordinate
+  const snappedX = Math.round(clampedX / gridSize) * gridSize;
+  const snappedY = Math.round(clampedY / gridSize) * gridSize;
+  
+  // Handle the edge case at the maximum bounds
   return {
-    x: Math.min(Math.max(snappedX, 0), WORLD_WIDTH),
-    y: Math.min(Math.max(snappedY, 0), WORLD_HEIGHT),
+    x: Math.min(snappedX, WORLD_WIDTH - (snappedX === WORLD_WIDTH ? gridSize : 0)),
+    y: Math.min(snappedY, WORLD_HEIGHT - (snappedY === WORLD_HEIGHT ? gridSize : 0)),
   };
 }
 

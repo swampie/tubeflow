@@ -29,13 +29,38 @@ export class DrawingHandler {
   }
 
   handleDrawingPreview(position: GridPosition) {
-    if (!this.drawingService.isCurrentlyDrawing()) return;
-
+    // Snap to grid first
     const snappedPos = snapToGrid(position.x, position.y);
-    const constrainedPoint = this.calculateConstrainedPoint(snappedPos);
-
-    this.ghostPoint.position.set(constrainedPoint.x, constrainedPoint.y);
+    
+    // If not currently drawing, just show the ghost point at the snapped position
+    if (!this.drawingService.isCurrentlyDrawing()) {
+      this.ghostPoint.position.set(snappedPos.x, snappedPos.y);
+      this.ghostPoint.visible = true;
+      return;
+    }
+    
+    // If we are drawing, apply the angle constraints
+    const linePoints = this.drawingService.getActiveLinePoints();
+    if (linePoints.length === 0) return;
+    
+    const lastPoint = linePoints[linePoints.length - 1];
+    const angle = Math.atan2(position.y - lastPoint.y, position.x - lastPoint.x) * (180 / Math.PI);
+    const directionConstrained = this.constrainToAngles(position.x, position.y, lastPoint, angle);
+    const finalSnappedPoint = snapToGrid(directionConstrained.x, directionConstrained.y);
+    
+    this.ghostPoint.position.set(finalSnappedPoint.x, finalSnappedPoint.y);
     this.ghostPoint.visible = true;
+  }
+  
+  private calculateNextPoint(x: number, y: number): Coordinates {
+    const linePoints = this.drawingService.getActiveLinePoints();
+    const lastPoint = linePoints[linePoints.length - 1];
+  
+    const angle = Math.atan2(y - lastPoint.y, x - lastPoint.x) * (180 / Math.PI);
+    const directionConstrained = this.constrainToAngles(x, y, lastPoint, angle);
+    
+    // Ensure the point is snapped to grid
+    return snapToGrid(directionConstrained.x, directionConstrained.y);
   }
 
   private shouldFinalizeLine(x: number, y: number): boolean {
@@ -47,55 +72,56 @@ export class DrawingHandler {
     return distance < 15; // Threshold for completing the line
   }
 
-  private calculateNextPoint(x: number, y: number): Coordinates {
-    const linePoints = this.drawingService.getActiveLinePoints();
-    const lastPoint = linePoints[linePoints.length - 1];
-
-    const angle =
-      Math.atan2(y - lastPoint.y, x - lastPoint.x) * (180 / Math.PI);
-    return this.constrainToAngles(x, y, lastPoint, angle);
-  }
-
-  private calculateConstrainedPoint(pos: Coordinates): Coordinates {
-    const linePoints = this.drawingService.getActiveLinePoints();
-    const lastPoint = linePoints[linePoints.length - 1];
-
-    const angle =
-      Math.atan2(pos.y - lastPoint.y, pos.x - lastPoint.x) * (180 / Math.PI);
-
-    return this.constrainToAngles(pos.x, pos.y, lastPoint, angle);
-  }
-
   private constrainToAngles(
     x: number,
     y: number,
     lastPoint: Coordinates,
     angle: number
   ): Coordinates {
-    if (Math.abs(angle) % 45 === 0) return { x, y };
-
-    if (Math.abs(angle) < 22.5 || Math.abs(angle) > 157.5) {
-      return { x, y: lastPoint.y }; // horizontal
-    }
-
-    if (Math.abs(angle) < 67.5) {
-      // 45° logic
-      const dx = x - lastPoint.x;
-      const dy = y - lastPoint.y;
-      const dist = Math.abs(dx);
-
-      if (Math.abs(dy) > Math.abs(dx)) {
-        return {
-          x,
-          y: lastPoint.y + Math.sign(dy) * dist,
+    // Normalize angle to 0-360
+    const normalizedAngle = ((angle + 360) % 360 + 360) % 360;
+    
+    // Find the closest permitted angle (0, 45, 90, 135, 180, 225, 270, 315)
+    let closestAngle = Math.round(normalizedAngle / 45) * 45;
+    if (closestAngle === 360) closestAngle = 0;
+    
+    // Get distance from last point to current position
+    const dx = x - lastPoint.x;
+    const dy = y - lastPoint.y;
+    const distance = Math.hypot(dx, dy);
+    
+    // Calculate new point based on angle
+    switch (closestAngle) {
+      case 0: // → Right
+        return { x: lastPoint.x + distance, y: lastPoint.y };
+      case 45: // ↗ Up-Right
+        return { 
+          x: lastPoint.x + distance * Math.cos(45 * Math.PI / 180), 
+          y: lastPoint.y + distance * Math.sin(45 * Math.PI / 180)
         };
-      }
-      return {
-        x: lastPoint.x + Math.sign(dx) * Math.abs(dy),
-        y,
-      };
+      case 90: // ↑ Up
+        return { x: lastPoint.x, y: lastPoint.y + distance };
+      case 135: // ↖ Up-Left
+        return { 
+          x: lastPoint.x - distance * Math.cos(45 * Math.PI / 180), 
+          y: lastPoint.y + distance * Math.sin(45 * Math.PI / 180)
+        };
+      case 180: // ← Left
+        return { x: lastPoint.x - distance, y: lastPoint.y };
+      case 225: // ↙ Down-Left
+        return { 
+          x: lastPoint.x - distance * Math.cos(45 * Math.PI / 180),
+          y: lastPoint.y - distance * Math.sin(45 * Math.PI / 180)
+        };
+      case 270: // ↓ Down
+        return { x: lastPoint.x, y: lastPoint.y - distance };
+      case 315: // ↘ Down-Right
+        return { 
+          x: lastPoint.x + distance * Math.cos(45 * Math.PI / 180),
+          y: lastPoint.y - distance * Math.sin(45 * Math.PI / 180)
+        };
+      default:
+        return { x, y };
     }
-
-    return { x: lastPoint.x, y }; // vertical
   }
 }

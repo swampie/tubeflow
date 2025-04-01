@@ -4,6 +4,7 @@ import { GlowFilter } from "pixi-filters";
 import {
   DEFAULT_HIGHLIGHT_OPTIONS,
   HIGHLIGHTED_LINE_DEFAULT_WIDTH,
+  LINE_DEFAULT_WIDTH,
 } from "../common/constants";
 import { DrawingService } from "./drawing-service";
 
@@ -36,7 +37,7 @@ export class SelectService {
       }
     });
 
-    document.getElementById('line-color')?.addEventListener('change', (e) => {
+    document.getElementById('line-color')?.addEventListener('input', (e) => {
       if (this.selectedElement && !('name' in this.selectedElement)) {
         this.updateLineColor(this.selectedElement, parseInt((e.target as HTMLInputElement).value.slice(1), 16));
       }
@@ -99,10 +100,11 @@ export class SelectService {
 
   private updateLineColor(line: Process, newColor: number): void {
     line.color = newColor;
+    // Update line visual color
     this.drawingService.drawLine(
       line.line, 
       line.coords, 
-      { color: newColor, width: line.line.width },
+      { color: newColor, width: LINE_DEFAULT_WIDTH },
       line.coords.length > 4
     );
   }
