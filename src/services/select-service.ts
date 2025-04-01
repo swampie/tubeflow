@@ -37,7 +37,7 @@ export class SelectService {
       }
     });
 
-    document.getElementById('line-color')?.addEventListener('change', (e) => {
+    document.getElementById('line-color')?.addEventListener('input', (e) => {
       if (this.selectedElement && !('name' in this.selectedElement)) {
         this.updateLineColor(this.selectedElement, parseInt((e.target as HTMLInputElement).value.slice(1), 16));
       }
