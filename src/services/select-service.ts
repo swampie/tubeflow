@@ -107,10 +107,6 @@ export class SelectService {
       { color: newColor, width: LINE_DEFAULT_WIDTH },
       line.coords.length > 4
     );
-    
-    
-    
-    
   }
 
   clearSelection(): void {
