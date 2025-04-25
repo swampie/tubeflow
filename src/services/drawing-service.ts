@@ -61,8 +61,6 @@ export class DrawingService {
     return this.linePoints;
   }
 
-
-
   isCurrentlyDrawing(): boolean {
     return this.isDrawing;
   }
@@ -86,53 +84,83 @@ export class DrawingService {
     strokeOptions: StrokeOptions,
     smooth = false
   ) {
-    if (!line) return;
-
+    if (!line || coords.length < 2) return;
+  
     line.clear();
-    line.moveTo(coords[0].x, coords[0].y);
-
-    if (!smooth) {
-      // Simple straight lines
+    
+    // If not smooth or too few points, just draw straight lines
+    if (!smooth || coords.length <= 2) {
+      line.moveTo(coords[0].x, coords[0].y);
       for (let i = 1; i < coords.length; i++) {
         line.lineTo(coords[i].x, coords[i].y);
       }
     } else {
-      // Smooth curved lines
-      for (let i = 1; i < coords.length; i++) {
-        const prevNode = coords[i - 1];
-        const currNode = coords[i];
-        const prevVector = {
-          x: currNode.x - prevNode.x,
-          y: currNode.y - prevNode.y,
+      // Start at the first point
+      line.moveTo(coords[0].x, coords[0].y);
+      
+      // For each segment (except the last one)
+      for (let i = 1; i < coords.length - 1; i++) {
+        const prev = coords[i - 1];
+        const curr = coords[i];
+        const next = coords[i + 1];
+        
+        // Determine the corner radius - small value for subtle curves
+        // Adjust this value to control how rounded the corners are
+        const cornerRadius = 10; 
+        
+        // Calculate vectors for the segments
+        const prevToCurrentVector = {
+          x: curr.x - prev.x,
+          y: curr.y - prev.y
         };
-
-        if (i < coords.length - 1) {
-          const nextNode = coords[i + 1];
-          const nextVector = {
-            x: nextNode.x - currNode.x,
-            y: nextNode.y - currNode.y,
-          };
-
-          // Calculate control point as the intersection of the two vectors
-          const controlPoint = {
-            x: (prevNode.x + currNode.x) / 2,
-            y: (prevNode.y + currNode.y) / 2,
-          };
-
-          // Draw a quadratic curve to the next point
-          line.quadraticCurveTo(
-            controlPoint.x,
-            controlPoint.y,
-            currNode.x,
-            currNode.y
-          );
-        } else {
-          // For the last point, draw a straight line
-          line.lineTo(currNode.x, currNode.y);
-        }
+        
+        const currentToNextVector = {
+          x: next.x - curr.x,
+          y: next.y - curr.y
+        };
+        
+        // Calculate the distance of each segment
+        const prevSegmentLength = Math.sqrt(
+          prevToCurrentVector.x * prevToCurrentVector.x + 
+          prevToCurrentVector.y * prevToCurrentVector.y
+        );
+        
+        const nextSegmentLength = Math.sqrt(
+          currentToNextVector.x * currentToNextVector.x + 
+          currentToNextVector.y * currentToNextVector.y
+        );
+        
+        // Calculate the proportion of the radius relative to segment length
+        // This ensures we don't exceed the length of either segment
+        const maxRadiusPrev = Math.min(cornerRadius, prevSegmentLength * 0.4);
+        const maxRadiusNext = Math.min(cornerRadius, nextSegmentLength * 0.4);
+        const useRadius = Math.min(maxRadiusPrev, maxRadiusNext);
+        
+        // Calculate points where the rounded corner starts and ends
+        const cornerStartPoint = {
+          x: curr.x - (prevToCurrentVector.x / prevSegmentLength) * useRadius,
+          y: curr.y - (prevToCurrentVector.y / prevSegmentLength) * useRadius
+        };
+        
+        const cornerEndPoint = {
+          x: curr.x + (currentToNextVector.x / nextSegmentLength) * useRadius,
+          y: curr.y + (currentToNextVector.y / nextSegmentLength) * useRadius
+        };
+        
+        // Draw line to the start of the corner
+        line.lineTo(cornerStartPoint.x, cornerStartPoint.y);
+        
+        // Draw the curved corner
+        line.quadraticCurveTo(
+          curr.x, curr.y,  // Control point at the actual corner
+          cornerEndPoint.x, cornerEndPoint.y // End at the exit point of the corner
+        );
       }
+      
+      // Draw the final segment to the last point
+      line.lineTo(coords[coords.length - 1].x, coords[coords.length - 1].y);
     }
-
+  
     line.stroke(strokeOptions);
   }
 
